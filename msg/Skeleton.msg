@@ -1,7 +1,9 @@
-Header header
-int32 user_id
-string[] name
-double angle
-geometry_msgs/Vector3[] position
-geometry_msgs/Quaternion[] orientation
-geometry_msgs/Twist velocity
+int32 userid
+SkeletonJoint head
+SkeletonJoint torso
+SkeletonJoint right_hand
+SkeletonJoint right_elbow
+SkeletonJoint right_shoulder
+SkeletonJoint left_hand
+SkeletonJoint left_elbow
+SkeletonJoint left_shoulder
