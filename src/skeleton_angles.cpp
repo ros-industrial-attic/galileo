@@ -10,7 +10,6 @@
 #include <XnCodecIDs.h>
 #include <XnCppWrapper.h>
 
-
 #include <galileo/Skeletons.h>
 //#include <galileo/SkeletonJoint.h>
 
@@ -220,8 +219,55 @@ class UserTracker
 
     }
 
+    float getDistance(XnPoint3D point1, XnPoint3D point2)
+    {
+          return  sqrt(pow((point2.X - point1.X),2) + 
+          pow((point2.Y - point1.Y),2) + 
+          pow((point2.Z - point1.Z),2));
+    }
+
+    void checkHandPose(XnUserID const & user)
+    {
+      if (!g_UserGenerator.GetSkeletonCap().IsTracking(user))
+      {
+        printf("User not tracked!\n");
+        return;
+      }
+
+      XnPoint3D point1  = getBodyLocalization(user, XN_SKEL_RIGHT_HAND);
+      XnPoint3D point2  = getBodyLocalization(user, XN_SKEL_TORSO);
+            
+    }
+    
+    void printJoinState(galileo::SkeletonJoint &skeletonJoint)
+    {
+      //ROS_DEBUG("angles: %.4f, %.4f, %.4f", skeletonJoint.roll, skeletonJoint.pitch, skeletonJoint.yaw);
+      printf("angles:(%f, %f, %f)  pos:( %f, %f, %f) \n ",
+       skeletonJoint.orientation.x, skeletonJoint.orientation.y, skeletonJoint.orientation.z,
+       skeletonJoint.position.x, skeletonJoint.position.y, skeletonJoint.position.z);
+    } 
+     /*    
+    float getPitch(tf::Quaternion q)
+    {
+      return atan2(2*(q.y*q.z + q.w*q.x), q.w*q.w - q.x*q.x - q.y*q.y + q.z*q.z);
+    }
+ 
+    float getYaw(tf::Quaternion q)
+    {
+      return asin(-2*(x*z - w*y));
+    }
+    var yaw = atan2(2.0*(q.y*q.z + q.w*q.x), q.w*q.w - q.x*q.x - q.y*q.y + q.z*q.z);
+var pitch = asin(-2.0*(q.x*q.z - q.w*q.y));
+var roll = atan2(2.0*(q.x*q.y + q.w*q.z), q.w*q.w + q.x*q.x - q.y*q.y - q.z*q.z)s
+
+    float getRoll(tf::Quaternion q)
+    {
+      return atan2(2*(x*y + w*z), w*w + x*x - y*y - z*z);
+    }*/
+    
     void publishTransform(XnUserID const& user, XnSkeletonJoint const& joint, 
-                          string const& frame_id, string const& child_frame_id)
+                          string const& frame_id, string const& child_frame_id,
+                          galileo::SkeletonJoint &skeletonJoint)
     {
         static tf::TransformBroadcaster br; 
 
@@ -239,19 +285,44 @@ class UserTracker
         KDL::Rotation rotation(m[0], m[1], m[2],
         					   m[3], m[4], m[5],
         					   m[6], m[7], m[8]);
+
         double qx, qy, qz, qw;
         rotation.GetQuaternion(qx, qy, qz, qw);
-
+              
+        double roll, pitch, yaw;
+        rotation.RPY(roll, pitch, yaw);
+        
         char child_frame_no[128];
         snprintf(child_frame_no, sizeof(child_frame_no), "%s_%d", child_frame_id.c_str(), user);
 
         tf::Transform transform;
+
         transform.setOrigin(tf::Vector3(x, y, z));
         transform.setRotation(tf::Quaternion(qx, -qy, -qz, qw));
 
-        // #4994
+        geometry_msgs::Vector3 position;
+		    geometry_msgs::Quaternion orientation;
+
+        position.x = x;
+        position.y = y;
+        position.z = z;
+
+        orientation.x = qx;
+        orientation.y = qy;
+        orientation.z = qz;
+        orientation.w = qw;
+
+        skeletonJoint.name = child_frame_id;
+		    skeletonJoint.position = position;
+		    skeletonJoint.orientation = orientation;
+		    skeletonJoint.confidence = joint_position.fConfidence;
+        skeletonJoint.roll = qx;//tf::Quaternion(qx, qy, qz, qw).getRoll();
+        skeletonJoint.pitch = qy;//tf::Quaternion(qx, qy, qz, qw).getPitch();
+        skeletonJoint.yaw = qz;//tf::Quaternion(qx, qy, qz, qw).getYaw();
+        
         tf::Transform change_frame;
         change_frame.setOrigin(tf::Vector3(0, 0, 0));
+
         tf::Quaternion frame_rotation;
         frame_rotation.setEulerZYX(1.5708, 0, 1.5708);
         change_frame.setRotation(frame_rotation);
@@ -260,43 +331,44 @@ class UserTracker
       
         br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), frame_id, child_frame_no));
         //transformer.setTransform(tf::StampedTransform(transform, ros::Time::now(), frame_id, child_frame_no));
-
         
     }
 
     void publishTransforms(const std::string& frame_id) {
+
         XnUserID users[15];
         XnUInt16 users_count = 15;
         g_UserGenerator.GetUsers(users, users_count);
-        
-               
+            
+        galileo::Skeletons skls;        
+           
         for (int i = 0; i < users_count; ++i) {
             XnUserID user = users[i];
             if (!g_UserGenerator.GetSkeletonCap().IsTracking(user))
                 continue;
+      
+            galileo::Skeleton skeleton;
+    
+            publishTransform(user, XN_SKEL_HEAD, frame_id, "head", skeleton.head);
+            publishTransform(user, XN_SKEL_TORSO, frame_id, "torso", skeleton.torso);
 
-
-            publishTransform(user, XN_SKEL_HEAD, frame_id, "head");
-            publishTransform(user, XN_SKEL_NECK, frame_id, "neck");
-            publishTransform(user, XN_SKEL_TORSO, frame_id, "torso");
-
-            publishTransform(user, XN_SKEL_LEFT_SHOULDER, frame_id, "left_shoulder");
-            publishTransform(user, XN_SKEL_LEFT_ELBOW, frame_id, "left_elbow");
-            publishTransform(user, XN_SKEL_LEFT_HAND, frame_id, "left_hand");
-
-            publishTransform(user, XN_SKEL_RIGHT_SHOULDER, frame_id, "right_shoulder");
-            publishTransform(user, XN_SKEL_RIGHT_ELBOW, frame_id, "right_elbow");
-            publishTransform(user, XN_SKEL_RIGHT_HAND, frame_id, "right_hand");
-
-            publishTransform(user, XN_SKEL_LEFT_HIP, frame_id, "left_hip");
-            publishTransform(user, XN_SKEL_LEFT_KNEE, frame_id, "left_knee");
-            publishTransform(user, XN_SKEL_LEFT_FOOT, frame_id, "left_foot");
-
-            publishTransform(user, XN_SKEL_RIGHT_HIP, frame_id, "right_hip");
-            publishTransform(user, XN_SKEL_RIGHT_KNEE, frame_id, "right_knee");
-            publishTransform(user, XN_SKEL_RIGHT_FOOT, frame_id, "right_foot");
+            publishTransform(user, XN_SKEL_LEFT_SHOULDER, frame_id, "left_shoulder", skeleton.left_shoulder);
+            publishTransform(user, XN_SKEL_LEFT_ELBOW, frame_id, "left_elbow", skeleton.left_elbow);
+            publishTransform(user, XN_SKEL_LEFT_HAND, frame_id, "left_hand", skeleton.left_hand);
+            publishTransform(user, XN_SKEL_LEFT_HIP, frame_id, "left_hip", skeleton.left_hip);
           
-            checkUserPose(user);           
+            publishTransform(user, XN_SKEL_RIGHT_SHOULDER, frame_id, "right_shoulder", skeleton.right_shoulder);
+            publishTransform(user, XN_SKEL_RIGHT_ELBOW, frame_id, "right_elbow", skeleton.right_elbow);
+            publishTransform(user, XN_SKEL_RIGHT_HAND, frame_id, "right_hand", skeleton.right_hand); 
+            publishTransform(user, XN_SKEL_RIGHT_HIP, frame_id, "right_hip", skeleton.right_hip);
+            
+  	        skeleton.userid = user;
+	          skls.skeletons.push_back(skeleton);
+
+            //skeleton_pub.publish(skeleton);
+
+            //checkUserPose(user);           
+            printJoinState(skeleton.left_hand);
         }
     }
 
