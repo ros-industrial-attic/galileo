@@ -227,7 +227,6 @@ int main (int argc, char** argv)
   if (pcl::console::find_argument(argc, argv, "-f") >= 0)
 	{
 		filename = argv[2];
-		
 	}  
 
   pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>);

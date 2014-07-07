@@ -11,5 +11,5 @@ add_definitions(${PCL_DEFINITIONS})
 add_executable (generate_points generate_points.cpp)
 target_link_libraries (generate_points ${PCL_LIBRARIES})
   
-add_executable(proccess_surface proccess_surface.cpp)
-target_link_libraries(proccess_surface ${PCL_LIBRARIES})
+#add_executable(proccess_surface proccess_surface.cpp)
+#target_link_libraries(proccess_surface ${PCL_LIBRARIES})

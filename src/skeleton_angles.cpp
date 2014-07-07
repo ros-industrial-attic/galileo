@@ -11,12 +11,27 @@
 #include <XnCppWrapper.h>
 
 #include <galileo/Skeletons.h>
-//#include <galileo/SkeletonJoint.h>
+#include <galileo/Features.h>
+
+#include <pcl_conversions/pcl_conversions.h>
+#include <pcl_ros/point_cloud.h>
+#include <sensor_msgs/PointCloud2.h>
+//#include <pcl/ros/conversions.h>
+#include <pcl/point_cloud.h>
+#include <pcl/point_types.h>
+#include <pcl/kdtree/kdtree_flann.h>
+#include <pcl/io/pcd_io.h>
+#include <pcl/PCLPointCloud2.h>
+
+#include <iostream>
+#include <vector>
+#include <ctime>
 
 
 #define pi 3.141592653589793
 
-using std::string;
+//using std::string;
+using namespace std;
 
 xn::Context        g_Context;
 xn::DepthGenerator g_DepthGenerator;
@@ -24,6 +39,9 @@ xn::UserGenerator  g_UserGenerator;
 
 XnBool g_bNeedPose   = FALSE;
 XnChar g_strPose[20] = "";
+
+typedef pcl::PointCloud<pcl::PointXYZ> PointCloud;
+string frame_id("openni_depth_frame");
 
 void XN_CALLBACK_TYPE User_NewUser(xn::UserGenerator& generator, XnUserID nId, void* pCookie) {
 	ROS_INFO("New User %d", nId);
@@ -70,28 +88,24 @@ class UserTracker
     ros::Time timestamp;
     string frame_id;
     ros::Publisher skeleton_pub;
+    ros::Subscriber sub;
+    ros::Publisher pub;
+      
+    int K;
+  
   public:
-    /*
-    void publishTransform(XnUserID const& user, XnSkeletonJoint const& joint, string const& child_frame_id);
-    //void getMarker(geometry_msgs::Point32* point, std::string const& frame_id);
-    XnPoint3D getBodyLocalization(XnUserID const& user, XnSkeletonJoint const& join);
-    void publishUser(XnUserID const& user);
-    void publishUsers();
-    float getMagnitude(KDL::Vector v);
-    float getLimbAngle(XnUserID const& user, XnSkeletonJoint const& joint1, 
-        XnSkeletonJoint const& joint2, XnSkeletonJoint const& joint3);
-    void checkUserPose(XnUserID const& userid);
-    void publishTransform(XnUserID const& user, XnSkeletonJoint const& joint, 
-                      string const& frame_id, string const& child_frame_id);
-    void publishTransforms(const std::string& frame_id);
-    */
+
     UserTracker()
     {
-    
+      K = 10;
+      //sub = nh.subscribe<sensor_msgs::PointCloud2>("/output", 1, &UserTracker::surfaceDistance, this);    
+      //sub = nh.subscribe("/output", 1, &UserTracker::surfaceDistance, this);      
+      sub = nh.subscribe<PointCloud>("points", 1, &UserTracker::surfaceDistance, this);
+
+      pub = nh.advertise<galileo::Features>("features", 1);
     }
   
     float getMagnitude(KDL::Vector v){
-	    //return sqrt(v.x() * v.X + v.Y * v.Y + v.Z * v.Z);
       return dot(v,v);
     }
 
@@ -246,8 +260,8 @@ class UserTracker
        skeletonJoint.orientation.x, skeletonJoint.orientation.y, skeletonJoint.orientation.z,
        skeletonJoint.position.x, skeletonJoint.position.y, skeletonJoint.position.z);
     } 
-     /*    
-    float getPitch(tf::Quaternion q)
+     /*   
+    float getPitch(tf::Quaternion &q)
     {
       return atan2(2*(q.y*q.z + q.w*q.x), q.w*q.w - q.x*q.x - q.y*q.y + q.z*q.z);
     }
@@ -256,10 +270,10 @@ class UserTracker
     {
       return asin(-2*(x*z - w*y));
     }
-    var yaw = atan2(2.0*(q.y*q.z + q.w*q.x), q.w*q.w - q.x*q.x - q.y*q.y + q.z*q.z);
-var pitch = asin(-2.0*(q.x*q.z - q.w*q.y));
-var roll = atan2(2.0*(q.x*q.y + q.w*q.z), q.w*q.w + q.x*q.x - q.y*q.y - q.z*q.z)s
-
+    //var yaw = atan2(2.0*(q.y*q.z + q.w*q.x), q.w*q.w - q.x*q.x - q.y*q.y + q.z*q.z);
+    //var pitch = asin(-2.0*(q.x*q.z - q.w*q.y));
+    //var roll = atan2(2.0*(q.x*q.y + q.w*q.z), q.w*q.w + q.x*q.x - q.y*q.y - q.z*q.z)s
+    
     float getRoll(tf::Quaternion q)
     {
       return atan2(2*(x*y + w*z), w*w + x*x - y*y - z*z);
@@ -282,6 +296,13 @@ var roll = atan2(2.0*(q.x*q.y + q.w*q.z), q.w*q.w + q.x*q.x - q.y*q.y - q.z*q.z)
         g_UserGenerator.GetSkeletonCap().GetSkeletonJointOrientation(user, joint, joint_orientation);
 
         XnFloat* m = joint_orientation.orientation.elements;
+	      /*m[0] = -m[0];
+	      m[1] = -m[1];
+	      m[2] = -m[2];
+	      m[6] = -m[6];
+	      m[7] = -m[7];
+	      m[8] = -m[8];*/
+
         KDL::Rotation rotation(m[0], m[1], m[2],
         					   m[3], m[4], m[5],
         					   m[6], m[7], m[8]);
@@ -292,13 +313,10 @@ var roll = atan2(2.0*(q.x*q.y + q.w*q.z), q.w*q.w + q.x*q.x - q.y*q.y - q.z*q.z)
         double roll, pitch, yaw;
         rotation.RPY(roll, pitch, yaw);
         
-        char child_frame_no[128];
-        snprintf(child_frame_no, sizeof(child_frame_no), "%s_%d", child_frame_id.c_str(), user);
-
         tf::Transform transform;
 
         transform.setOrigin(tf::Vector3(x, y, z));
-        transform.setRotation(tf::Quaternion(qx, -qy, -qz, qw));
+        transform.setRotation(tf::Quaternion(qx, qy, qz, qw));
 
         geometry_msgs::Vector3 position;
 		    geometry_msgs::Quaternion orientation;
@@ -316,102 +334,133 @@ var roll = atan2(2.0*(q.x*q.y + q.w*q.z), q.w*q.w + q.x*q.x - q.y*q.y - q.z*q.z)
 		    skeletonJoint.position = position;
 		    skeletonJoint.orientation = orientation;
 		    skeletonJoint.confidence = joint_position.fConfidence;
-        skeletonJoint.roll = qx;//tf::Quaternion(qx, qy, qz, qw).getRoll();
-        skeletonJoint.pitch = qy;//tf::Quaternion(qx, qy, qz, qw).getPitch();
-        skeletonJoint.yaw = qz;//tf::Quaternion(qx, qy, qz, qw).getYaw();
+
+        skeletonJoint.transform.translation.x = transform.getOrigin().x();
+	      skeletonJoint.transform.translation.y = transform.getOrigin().y();
+  	    skeletonJoint.transform.translation.z = transform.getOrigin().z();
+
+	      skeletonJoint.transform.rotation.x = transform.getRotation().x();
+	      skeletonJoint.transform.rotation.y = transform.getRotation().y();
+	      skeletonJoint.transform.rotation.z = transform.getRotation().z();
+	      skeletonJoint.transform.rotation.w = transform.getRotation().w();
+
+        skeletonJoint.roll = roll;//tf::Quaternion(qx, qy, qz, qw).getRoll();
+        skeletonJoint.pitch = pitch;//tf::Quaternion(qx, qy, qz, qw).getPitch();
+        skeletonJoint.yaw = yaw;//tf::Quaternion(qx, qy, qz, qw).getYaw();
         
-        tf::Transform change_frame;
-        change_frame.setOrigin(tf::Vector3(0, 0, 0));
-
-        tf::Quaternion frame_rotation;
-        frame_rotation.setEulerZYX(1.5708, 0, 1.5708);
-        change_frame.setRotation(frame_rotation);
-
-        transform = change_frame * transform;
-      
-        br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), frame_id, child_frame_no));
+        
+        //br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), frame_id, child_frame_no));
         //transformer.setTransform(tf::StampedTransform(transform, ros::Time::now(), frame_id, child_frame_no));
         
     }
 
     void publishTransforms(const std::string& frame_id) {
 
-        XnUserID users[15];
-        XnUInt16 users_count = 15;
-        g_UserGenerator.GetUsers(users, users_count);
-            
-        galileo::Skeletons skls;        
-           
-        for (int i = 0; i < users_count; ++i) {
-            XnUserID user = users[i];
-            if (!g_UserGenerator.GetSkeletonCap().IsTracking(user))
-                continue;
-      
-            galileo::Skeleton skeleton;
-    
-            publishTransform(user, XN_SKEL_HEAD, frame_id, "head", skeleton.head);
-            publishTransform(user, XN_SKEL_TORSO, frame_id, "torso", skeleton.torso);
-
-            publishTransform(user, XN_SKEL_LEFT_SHOULDER, frame_id, "left_shoulder", skeleton.left_shoulder);
-            publishTransform(user, XN_SKEL_LEFT_ELBOW, frame_id, "left_elbow", skeleton.left_elbow);
-            publishTransform(user, XN_SKEL_LEFT_HAND, frame_id, "left_hand", skeleton.left_hand);
-            publishTransform(user, XN_SKEL_LEFT_HIP, frame_id, "left_hip", skeleton.left_hip);
+      XnUserID users[15];
+      XnUInt16 users_count = 15;
+      g_UserGenerator.GetUsers(users, users_count);
           
-            publishTransform(user, XN_SKEL_RIGHT_SHOULDER, frame_id, "right_shoulder", skeleton.right_shoulder);
-            publishTransform(user, XN_SKEL_RIGHT_ELBOW, frame_id, "right_elbow", skeleton.right_elbow);
-            publishTransform(user, XN_SKEL_RIGHT_HAND, frame_id, "right_hand", skeleton.right_hand); 
-            publishTransform(user, XN_SKEL_RIGHT_HIP, frame_id, "right_hip", skeleton.right_hip);
-            
-  	        skeleton.userid = user;
-	          skls.skeletons.push_back(skeleton);
+      galileo::Skeletons skls;        
+         
+      for (int i = 0; i < users_count; ++i) {
+          XnUserID user = users[i];
+          if (!g_UserGenerator.GetSkeletonCap().IsTracking(user))
+              continue;
+    
+          galileo::Skeleton skeleton;
+  
+          publishTransform(user, XN_SKEL_HEAD, frame_id, "head", skeleton.head);
+          publishTransform(user, XN_SKEL_TORSO, frame_id, "torso", skeleton.torso);
 
-            //skeleton_pub.publish(skeleton);
+          publishTransform(user, XN_SKEL_LEFT_SHOULDER, frame_id, "left_shoulder", skeleton.left_shoulder);
+          publishTransform(user, XN_SKEL_LEFT_ELBOW, frame_id, "left_elbow", skeleton.left_elbow);
+          publishTransform(user, XN_SKEL_LEFT_HAND, frame_id, "left_hand", skeleton.left_hand);
+          publishTransform(user, XN_SKEL_LEFT_HIP, frame_id, "left_hip", skeleton.left_hip);
+        
+          publishTransform(user, XN_SKEL_RIGHT_SHOULDER, frame_id, "right_shoulder", skeleton.right_shoulder);
+          publishTransform(user, XN_SKEL_RIGHT_ELBOW, frame_id, "right_elbow", skeleton.right_elbow);
+          publishTransform(user, XN_SKEL_RIGHT_HAND, frame_id, "right_hand", skeleton.right_hand); 
+          publishTransform(user, XN_SKEL_RIGHT_HIP, frame_id, "right_hip", skeleton.right_hip);
+          
+	        skeleton.userid = user;
+          skls.skeletons.push_back(skeleton);
 
-            //checkUserPose(user);           
-            printJoinState(skeleton.left_hand);
-        }
-    }
+          //skeleton_pub.publish(skeleton);
 
-};
-/*
-void publishTransforms(const std::string& frame_id) {
+          //checkUserPose(user);           
+          //printJoinState(skeleton.left_hand);
+          //XnPoint3D left_hand = getBodyLocalization(user, XN_SKEL_LEFT_HAND);
+          //calculateDistancesSurface(left_hand, 10);
+      }
+  }
+  //void surfaceDistance(const sensor_msgs::PointCloud2ConstPtr& msg)
+  //void surfaceDistance(const pcl::PCLPointCloud2ConstPtr& msg)
+  //void surfaceDistance(const sensor_msgs::PCLPointCloud2 &input)  
+  //void surfaceDistance(const sensor_msgs::PointCloud2 &msg)
+  void surfaceDistance(const PointCloud::ConstPtr& cloud)
+  {
+
     XnUserID users[15];
     XnUInt16 users_count = 15;
     g_UserGenerator.GetUsers(users, users_count);
-    
-    Skeletons skeletons;
-
+          
     for (int i = 0; i < users_count; ++i) {
-        XnUserID user = users[i];
-        if (!g_UserGenerator.GetSkeletonCap().IsTracking(user))
-            continue;
+          XnUserID user = users[i];
+          if (!g_UserGenerator.GetSkeletonCap().IsTracking(user))
+            continue;                
         
-        Skeleton skeleton;      
-        skeleton.userid = user
-        publishTransform(user, XN_SKEL_HEAD,           frame_id, "neck", skeleton.head);
-        publishTransform(user, XN_SKEL_NECK,           frame_id, "neck", skeleton.neck);
-        publishTransform(user, XN_SKEL_TORSO,          frame_id, "torso", skeleton.torso);
+          galileo::Skeleton skeleton;
+          galileo::Features features;
 
-        publishTransform(user, XN_SKEL_LEFT_SHOULDER,  frame_id, "left_shoulder", skeleton.left_shoulder);
-        publishTransform(user, XN_SKEL_LEFT_ELBOW,     frame_id, "left_elbow", skeleton_left_elbow);
-        publishTransform(user, XN_SKEL_LEFT_HAND,      frame_id, "left_hand", skeleton.left_hand);
+          publishTransform(user, XN_SKEL_RIGHT_HAND, frame_id, "right_hand", skeleton.right_hand);
 
-        publishTransform(user, XN_SKEL_RIGHT_SHOULDER, frame_id, "right_shoulder", skeleton.right_shoulder);
-        publishTransform(user, XN_SKEL_RIGHT_ELBOW,    frame_id, "right_elbow", skeleton.right_elbow);
-        publishTransform(user, XN_SKEL_RIGHT_HAND,     frame_id, "right_hand", skeleton.right_hand);
+          pcl::KdTreeFLANN<pcl::PointXYZ> kdtree;
+        
+          kdtree.setInputCloud (cloud);
 
-        publishTransform(user, XN_SKEL_LEFT_HIP,       frame_id, "left_hip", skeleton.left_hip);
-        publishTransform(user, XN_SKEL_LEFT_KNEE,      frame_id, "left_knee", skeleton.left_knee);
-        publishTransform(user, XN_SKEL_LEFT_FOOT,      frame_id, "left_foot", skeleton.left_foot);
+          XnPoint3D left_hand = getBodyLocalization(user, XN_SKEL_RIGHT_HAND);
+          
+          pcl::PointXYZ searchPoint;
 
-        publishTransform(user, XN_SKEL_RIGHT_HIP,      frame_id, "right_hip", skeleton.right_hip);
-        publishTransform(user, XN_SKEL_RIGHT_KNEE,     frame_id, "right_knee", skeleton.right_knee);
-        publishTransform(user, XN_SKEL_RIGHT_FOOT,     frame_id, "right_foot", skeleton.right_foot);
+          searchPoint.x = skeleton.right_hand.position.x;          
+          searchPoint.y = skeleton.right_hand.position.y;
+          searchPoint.z = skeleton.right_hand.position.z;
 
-        skls.skeletons.push_back(skeleton);
-    }
-}
-*/
+          // K nearest neighbor search
+          vector<int> pointIdxNKNSearch(K);
+          vector<float> pointNKNSquaredDistance(K);
+
+          std::cout << "K nearest neighbor of hand point (" << searchPoint.x 
+                    << " " << searchPoint.y 
+                    << " " << searchPoint.z
+                    << ") with K=" << K << std::endl;
+          std::cout << "skeleton joint position of hand (" << left_hand.X
+                    << " " << left_hand.Y
+                    << " " << left_hand.Z
+                    << ")" << std::endl;
+
+          printJoinState(skeleton.right_hand);
+
+          features.joint = skeleton.right_hand;
+
+          if ( kdtree.nearestKSearch (searchPoint, K, pointIdxNKNSearch, pointNKNSquaredDistance) > 0 )
+          {
+            for (size_t i = 0; i < pointIdxNKNSearch.size (); ++i)
+            {  cout << "    "  <<   cloud->points[ pointIdxNKNSearch[i] ].x 
+                   << " " << cloud->points[ pointIdxNKNSearch[i] ].y 
+                   << " " << cloud->points[ pointIdxNKNSearch[i] ].z 
+                   << " (squared distance: " << pointNKNSquaredDistance[i] << ")" << std::endl;
+               features.distances.push_back(pointNKNSquaredDistance[i]); 
+            }
+          }
+          
+          pub.publish(features);
+    } // endfor
+   
+    
+  }  
+
+};
 
 #define CHECK_RC(nRetVal, what)										\
 	if (nRetVal != XN_STATUS_OK)									\
@@ -421,11 +470,11 @@ void publishTransforms(const std::string& frame_id) {
 	}
 
 
-
 int main(int argc, char **argv) {
-  ros::init(argc, argv, "galileo");
-  ros::NodeHandle nh;
 
+  ros::init(argc, argv, "galileo");
+
+  
   string configFilename = ros::package::getPath("openni_tracker") + "/openni_tracker.xml";
   XnStatus nRetVal = g_Context.InitFromXmlFile(configFilename.c_str());
   CHECK_RC(nRetVal, "InitFromXml");
@@ -448,7 +497,8 @@ int main(int argc, char **argv) {
 	g_UserGenerator.RegisterUserCallbacks(User_NewUser, User_LostUser, NULL, hUserCallbacks);
 
 	XnCallbackHandle hCalibrationCallbacks;
-	g_UserGenerator.GetSkeletonCap().RegisterCalibrationCallbacks(UserCalibration_CalibrationStart, UserCalibration_CalibrationEnd, NULL, hCalibrationCallbacks);
+	g_UserGenerator.GetSkeletonCap().RegisterCalibrationCallbacks(UserCalibration_CalibrationStart, 
+    UserCalibration_CalibrationEnd, NULL, hCalibrationCallbacks);
 
 	if (g_UserGenerator.GetSkeletonCap().NeedPoseForCalibration()) {
 	  g_bNeedPose = TRUE;
@@ -468,19 +518,19 @@ int main(int argc, char **argv) {
 	nRetVal = g_Context.StartGeneratingAll();
 	CHECK_RC(nRetVal, "StartGenerating");
 
+  UserTracker tracker;
+
 	ros::Rate r(30);
         
   ros::NodeHandle pnh("~");
-  string frame_id("openni_depth_frame");
+ 
   pnh.getParam("camera_frame_id", frame_id);
   
-  UserTracker tracker;
-        
 	while (ros::ok()) {
 		g_Context.WaitAndUpdateAll();
 		
-    tracker.publishTransforms(frame_id);
-
+    //tracker.publishTransforms(frame_id);
+    ros::spinOnce();
 		r.sleep();
 	}
 

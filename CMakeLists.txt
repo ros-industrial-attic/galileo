@@ -7,19 +7,55 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   sensor_msgs	
   std_msgs
-  geometry_msgs  
+  geometry_msgs 
   tf
+  pcl_ros
+  pcl_conversions
+  image_geometry
 )
 
+# find Orocos kdl
+find_package(orocos_kdl REQUIRED)
+
+find_package(PCL REQUIRED)
+
+#find_package(OpenCV REQUIRED)
+
+# find Openni
+find_package(PkgConfig)
+include(FindPkgConfig)
+pkg_check_modules(OpenNi REQUIRED libopenni)
+
+include_directories(
+  ${catkin_INCLUDE_DIR}
+  ${OpenNi_INCLUDE_DIR}
+  ${Nite_INCLUDE_DIR}
+  ${orocos_kdl_INCLUDE_DIRS}
+  ${PCL_INCLUDE_DIRS}
+#  ${OpenCV_INCLUDE_DIRS}
+)
+
+link_directories(
+  ${catkin_LIBRARY_DIRS}
+  ${orocos_kdl_LIBRARY_DIRS}
+  ${OpenNi_LIBRARIES}
+  ${PCL_LIBRARY_DIRS}
+#  ${OpenCV_LIBRARIES}
+)
+
+add_definitions(${PCL_DEFINITIONS})
+#
 set(ROS_BUILD_TYPE Release)
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
 
 #rosbuild_genmsg()
 
-add_message_files(FILES
+add_message_files(
+  FILES
   Skeleton.msg
   SkeletonJoint.msg
   Skeletons.msg
+  Features.msg
 )
 
 generate_messages(DEPENDENCIES 
@@ -27,7 +63,7 @@ generate_messages(DEPENDENCIES
 )
 
 catkin_package(
-  INCLUDE_DIRS include
+# INCLUDE_DIRS include
 # LIBRARIES galileo
   DEPENDS system_lib
   CATKIN_DEPENDS 
@@ -38,28 +74,12 @@ catkin_package(
     std_msgs
     geometry_msgs
     tf
+    pcl_ros
+    pcl_conversions
+    image_geometry
 )
 
-link_directories(
-  ${catkin_LIBRARY_DIRS}
-  ${orocos_kdl_LIBRARY_DIRS}
-  ${OpenNi_LIBRARIES}
-)
 
-include_directories(
-  ${catkin_INCLUDE_DIR}
-  ${OpenNi_INCLUDE_DIR}
-  ${Nite_INCLUDE_DIR}
-  ${orocos_kdl_INCLUDE_DIRS}
-)
-
-# find Orocos kdl
-find_package(orocos_kdl REQUIRED)
-
-# find Openni
-find_package(PkgConfig)
-include(FindPkgConfig)
-pkg_check_modules(OpenNi REQUIRED libopenni)
 
 ## Declare a cpp executable
 add_executable(capture_image_node src/capture_image_node.cpp)
@@ -82,6 +102,20 @@ target_link_libraries(skeleton_angles_node
   ${catkin_LIBRARIES} 
   ${OpenNI_LIBRARIES}
   ${orocos_kdl_LIBRARIES}
+  ${PCL_LIBRARIES}
+)
+
+add_executable(point_cloud_node src/point_cloud_node.cpp)
+target_link_libraries(point_cloud_node  
+  ${catkin_LIBRARIES}
+  ${PCL_LIBRARIES}
+#  ${OpenCV_LIBS}
+)
+
+add_executable(test5_node src/test5.cpp)
+target_link_libraries(test5_node  
+  ${catkin_LIBRARIES}
+  ${PCL_LIBRARIES}
 )
 
 #

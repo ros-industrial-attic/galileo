@@ -16,9 +16,14 @@ class SimpleOpenNIProcessor
 {
   public:
   bool hasColor_;
+  bool saveCloud;
+  string filename;
 
-  SimpleOpenNIProcessor () : viewer ("PCL OpenNI Viewer"), hasColor_(false) {}
-  SimpleOpenNIProcessor (bool hasColor) : viewer ("PCL OpenNI Viewer"), hasColor_(hasColor) {}
+  SimpleOpenNIProcessor () : viewer ("PCL OpenNI Viewer"),
+                             hasColor_(false), saveCloud(true),
+                             filename("surface.pcd") {}
+  SimpleOpenNIProcessor (bool hasColor) : viewer ("PCL OpenNI Viewer"),
+                             hasColor_(hasColor), saveCloud(true),filename("surface.pcd") {}
   /*
   void proccess_cloud2(const pcl::PointCloud<pcl::PointXYZRGBA>::ConstPtr &cloud){ 
 
@@ -47,6 +52,8 @@ class SimpleOpenNIProcessor
       if (!viewer.wasStopped()){
         viewer.showCloud (cloud);
       }
+
+      //save_cloud2(cloud);
   }
   
   void proccess_cloud1(const pcl::PointCloud<pcl::PointXYZRGBA>::ConstPtr &cloud)
@@ -69,12 +76,13 @@ class SimpleOpenNIProcessor
       if (!viewer.wasStopped()){
         viewer.showCloud (cloud);
       }
+      
   }
   
   void save_cloud1(const pcl::PointCloud<pcl::PointXYZRGBA>::ConstPtr &cloud)
   {
     
-    pcl::io::savePCDFileASCII ("surface.pcd", *cloud);
+    pcl::io::savePCDFileASCII (filename, *cloud);
     //std::cerr << "Saved " << cloud.points.size () << " data points with colors." << std::endl;
     std::cerr << "Saved data points with colors." << std::endl;
     /*
@@ -86,13 +94,42 @@ class SimpleOpenNIProcessor
   void save_cloud2(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr &cloud)
   {
     
-    pcl::io::savePCDFileASCII ("surface.pcd", *cloud);
+    pcl::io::savePCDFileASCII (filename, *cloud);
     //std::cerr << "Saved " << cloud.points.size () << " data points with colors." << std::endl;
-    std::cerr << "Saved data points with colors." << std::endl;
-    /*
+    std::cerr << "Saved data points without colors." << std::endl;
+    /*ou
     for (size_t i = 0; i < cloud.points.size (); ++i)
       std::cerr << " " << cloud.points[i].x << " " << cloud.points[i].y << " " << cloud.points[i].z << std::endl;
     */
+  } 
+  
+
+  void save_cloud3(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr &cloud) {
+    std::stringstream stream;
+
+    stream << "surface" << num_s++ << ".pcd"; //
+    pcl::io::savePCDFileBinary(stream.str(), *cloud);
+
+  } 
+
+  void save_cloud4(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr &cloud) {
+    std::stringstream stream;
+    std::string filename;
+
+    stream << "surface" << num_s << ".pcd"; //
+    filename = stream.str();
+  
+    if(saveCloud)
+    {
+      if(pcl::io::savePCDFile(filename, *cloud) == 0)
+      {
+          num_s++;
+          std::cout<<"Saved "<< filename <<std::endl;
+      }else
+        PCL_ERROR("Problem saving %s.\n", filename.c_str());
+      saveCloud = false;
+    }       
+
   } 
 
   void run ()
@@ -116,7 +153,7 @@ class SimpleOpenNIProcessor
         f = boost::bind (&SimpleOpenNIProcessor::proccess_cloud2, this, _1);
 
       boost::function<void (const pcl::PointCloud<pcl::PointXYZ>::ConstPtr&)> 
-        g = boost::bind (&SimpleOpenNIProcessor::save_cloud2, this, _1);
+        g = boost::bind (&SimpleOpenNIProcessor::save_cloud4, this, _1);
 
       boost::signals2::connection a = interface->registerCallback (f);
       boost::signals2::connection b = interface->registerCallback (g);
@@ -138,7 +175,7 @@ class SimpleOpenNIProcessor
 int main (int argc, char** argv)
 {
 	
-  SimpleOpenNIProcessor v(true);
+  SimpleOpenNIProcessor v(false);
   v.run ();
 
   return (0);
