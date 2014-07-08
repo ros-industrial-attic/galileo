@@ -20,8 +20,9 @@
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <pcl/kdtree/kdtree_flann.h>
-#include <pcl/io/pcd_io.h>
 #include <pcl/PCLPointCloud2.h>
+#include <pcl/features/normal_3d.h>
+#include <pcl/features/pfh.h>
 
 #include <iostream>
 #include <vector>
@@ -97,10 +98,10 @@ class UserTracker
 
     UserTracker()
     {
-      K = 10;
+      K = 5;
       //sub = nh.subscribe<sensor_msgs::PointCloud2>("/output", 1, &UserTracker::surfaceDistance, this);    
       //sub = nh.subscribe("/output", 1, &UserTracker::surfaceDistance, this);      
-      sub = nh.subscribe<PointCloud>("points", 1, &UserTracker::surfaceDistance, this);
+      sub = nh.subscribe<PointCloud>("points", 1, &UserTracker::extractFeatures, this);
 
       pub = nh.advertise<galileo::Features>("features", 1);
     }
@@ -137,7 +138,11 @@ class UserTracker
         return pt;
       }
 
-      pt = joint_position.position; 
+      pt = joint_position.position;
+      pt.X = pt.X/1000; 
+      pt.Y = pt.Y/1000;
+      pt.Z = pt.Z/1000;
+
       return pt;
     }
 
@@ -306,7 +311,7 @@ class UserTracker
         KDL::Rotation rotation(m[0], m[1], m[2],
         					   m[3], m[4], m[5],
         					   m[6], m[7], m[8]);
-
+        printf("m[] %f %f %f %f %f %f %f %f %f\n",m[0], m[1], m[2],m[3], m[4], m[5],m[6], m[7], m[8]);
         double qx, qy, qz, qw;
         rotation.GetQuaternion(qx, qy, qz, qw);
               
@@ -314,10 +319,21 @@ class UserTracker
         rotation.RPY(roll, pitch, yaw);
         
         tf::Transform transform;
+        ros::Time t;
+        
+        t = ros::Time::now();
 
         transform.setOrigin(tf::Vector3(x, y, z));
-        transform.setRotation(tf::Quaternion(qx, qy, qz, qw));
+        transform.setRotation(tf::Quaternion(qx, -qy, -qz, qw));
+    
+        tf::Transform change_frame;
+        change_frame.setOrigin(tf::Vector3(0, 0, 0));
+        tf::Quaternion frame_rotation;
+        frame_rotation.setEulerZYX(1.5708, 0, 1.5708);
+        change_frame.setRotation(frame_rotation);
 
+        transform = change_frame * transform;
+    
         geometry_msgs::Vector3 position;
 		    geometry_msgs::Quaternion orientation;
 
@@ -335,6 +351,7 @@ class UserTracker
 		    skeletonJoint.orientation = orientation;
 		    skeletonJoint.confidence = joint_position.fConfidence;
 
+        
         skeletonJoint.transform.translation.x = transform.getOrigin().x();
 	      skeletonJoint.transform.translation.y = transform.getOrigin().y();
   	    skeletonJoint.transform.translation.z = transform.getOrigin().z();
@@ -343,15 +360,18 @@ class UserTracker
 	      skeletonJoint.transform.rotation.y = transform.getRotation().y();
 	      skeletonJoint.transform.rotation.z = transform.getRotation().z();
 	      skeletonJoint.transform.rotation.w = transform.getRotation().w();
+      
+        //skeletonJoint.transform = transform;
 
-        skeletonJoint.roll = roll;//tf::Quaternion(qx, qy, qz, qw).getRoll();
+        skeletonJoint.roll = atan2(m[7],m[8]);//roll;//tf::Quaternion(qx, qy, qz, qw).getRoll();
         skeletonJoint.pitch = pitch;//tf::Quaternion(qx, qy, qz, qw).getPitch();
         skeletonJoint.yaw = yaw;//tf::Quaternion(qx, qy, qz, qw).getYaw();
         
         
-        //br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), frame_id, child_frame_no));
-        //transformer.setTransform(tf::StampedTransform(transform, ros::Time::now(), frame_id, child_frame_no));
-        
+        br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), frame_id, child_frame_id));
+
+        return;        
+       
     }
 
     void publishTransforms(const std::string& frame_id) {
@@ -393,11 +413,8 @@ class UserTracker
           //calculateDistancesSurface(left_hand, 10);
       }
   }
-  //void surfaceDistance(const sensor_msgs::PointCloud2ConstPtr& msg)
-  //void surfaceDistance(const pcl::PCLPointCloud2ConstPtr& msg)
-  //void surfaceDistance(const sensor_msgs::PCLPointCloud2 &input)  
-  //void surfaceDistance(const sensor_msgs::PointCloud2 &msg)
-  void surfaceDistance(const PointCloud::ConstPtr& cloud)
+
+  void extractFeatures(const PointCloud::ConstPtr& cloud)
   {
 
     XnUserID users[15];
@@ -415,16 +432,28 @@ class UserTracker
           publishTransform(user, XN_SKEL_RIGHT_HAND, frame_id, "right_hand", skeleton.right_hand);
 
           pcl::KdTreeFLANN<pcl::PointXYZ> kdtree;
-        
+          pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ> ());
+          pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> ne;
+          pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>);
+
           kdtree.setInputCloud (cloud);
 
           XnPoint3D left_hand = getBodyLocalization(user, XN_SKEL_RIGHT_HAND);
-          
-          pcl::PointXYZ searchPoint;
+          XnPoint3D torso = getBodyLocalization(user, XN_SKEL_TORSO);
+
+          pcl::PointXYZ searchPoint; // this is joint position
+          pcl::PointXYZ closestPoint; // the closest point to surface
+          geometry_msgs::Vector3 closestPointm;   
+          geometry_msgs::Vector3 basePoint;
 
           searchPoint.x = skeleton.right_hand.position.x;          
           searchPoint.y = skeleton.right_hand.position.y;
           searchPoint.z = skeleton.right_hand.position.z;
+
+          basePoint.x = torso.X;
+          basePoint.y = torso.Y;
+          basePoint.z = torso.Z;
+
 
           // K nearest neighbor search
           vector<int> pointIdxNKNSearch(K);
@@ -446,14 +475,42 @@ class UserTracker
           if ( kdtree.nearestKSearch (searchPoint, K, pointIdxNKNSearch, pointNKNSquaredDistance) > 0 )
           {
             for (size_t i = 0; i < pointIdxNKNSearch.size (); ++i)
-            {  cout << "    "  <<   cloud->points[ pointIdxNKNSearch[i] ].x 
+            {  cout << " " << cloud->points[ pointIdxNKNSearch[i] ].x 
                    << " " << cloud->points[ pointIdxNKNSearch[i] ].y 
                    << " " << cloud->points[ pointIdxNKNSearch[i] ].z 
                    << " (squared distance: " << pointNKNSquaredDistance[i] << ")" << std::endl;
                features.distances.push_back(pointNKNSquaredDistance[i]); 
+               //std::sort(features.distances.begin(), features.distances.end());
             }
           }
           
+                
+          closestPoint.x = cloud->points[pointIdxNKNSearch[0]].x; 
+          closestPoint.y = cloud->points[pointIdxNKNSearch[0]].y; 
+          closestPoint.z = cloud->points[pointIdxNKNSearch[0]].z; 
+          closestPointm.x = closestPoint.x; 
+          closestPointm.y = closestPoint.y;
+          closestPointm.z = closestPoint.z;
+
+          ne.setViewPoint (closestPoint.x, closestPoint.y, closestPoint.z); // normals around the closest point
+          ne.setInputCloud (cloud);
+          ne.setSearchMethod (tree);
+
+          // Use all neighbors in a sphere of radius 3cm
+          ne.setRadiusSearch (0.03);
+
+          // Compute the features
+          ne.compute (*normals);
+          
+          /*for (size_t i = 0; i < normals->points.size(); ++i)
+            std::cerr << " " << normals->points[i].normal_x 
+                      << " " << normals->points[i].normal_y
+                      << " " << normals->points[i].normal_z << std::endl;
+          */
+
+          features.closestPoint = closestPointm;
+          features.basePoint = basePoint;
+
           pub.publish(features);
     } // endfor
    
