@@ -112,18 +112,6 @@ target_link_libraries(point_cloud_node
 #  ${OpenCV_LIBS}
 )
 
-add_executable(test5_node src/test5.cpp)
-target_link_libraries(test5_node  
-  ${catkin_LIBRARIES}
-  ${PCL_LIBRARIES}
-)
-
-#
-#add_executable(kinect_angles_node src/kinect_angles.cpp)
-#target_link_libraries(kinect_angles_node
-#   ${catkin_LIBRARIES}
-#)
-
 install(TARGETS capture_image_node
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
