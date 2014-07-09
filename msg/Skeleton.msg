@@ -1,12 +1,3 @@
 int32 userid
-SkeletonJoint head
 SkeletonJoint torso
 SkeletonJoint right_hand
-SkeletonJoint right_elbow
-SkeletonJoint right_shoulder
-SkeletonJoint right_hip
-SkeletonJoint left_hand
-SkeletonJoint left_elbow
-SkeletonJoint left_shoulder
-SkeletonJoint left_hip
-

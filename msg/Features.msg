@@ -1,5 +1,4 @@
 Header header
-SkeletonJoint joint
-geometry_msgs/Vector3 basePoint
 geometry_msgs/Vector3 closestPoint
+geometry_msgs/Vector3 basePoint
 float32[] distances

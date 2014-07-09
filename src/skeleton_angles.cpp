@@ -90,7 +90,7 @@ class UserTracker
     string frame_id;
     ros::Publisher skeleton_pub;
     ros::Subscriber sub;
-    ros::Publisher pub;
+    ros::Publisher features_pub;
       
     int K;
   
@@ -103,7 +103,8 @@ class UserTracker
       //sub = nh.subscribe("/output", 1, &UserTracker::surfaceDistance, this);      
       sub = nh.subscribe<PointCloud>("points", 1, &UserTracker::extractFeatures, this);
 
-      pub = nh.advertise<galileo::Features>("features", 1);
+      features_pub = nh.advertise<galileo::Features>("features", 1);
+      skeleton_pub = nh.advertise<galileo::Skeletons>("skeleton", 1);
     }
   
     float getMagnitude(KDL::Vector v){
@@ -261,9 +262,12 @@ class UserTracker
     void printJoinState(galileo::SkeletonJoint &skeletonJoint)
     {
       //ROS_DEBUG("angles: %.4f, %.4f, %.4f", skeletonJoint.roll, skeletonJoint.pitch, skeletonJoint.yaw);
-      printf("angles:(%f, %f, %f)  pos:( %f, %f, %f) \n ",
+      printf("orientation:(%f, %f, %f)  pos:( %f, %f, %f) \n roll pitch yaw(%f, %f ,%f) rotation(%f, %f ,%f, %f) \n  ",
        skeletonJoint.orientation.x, skeletonJoint.orientation.y, skeletonJoint.orientation.z,
-       skeletonJoint.position.x, skeletonJoint.position.y, skeletonJoint.position.z);
+       skeletonJoint.position.x, skeletonJoint.position.y, skeletonJoint.position.z,
+       skeletonJoint.roll, skeletonJoint.pitch, skeletonJoint.yaw,
+       skeletonJoint.transform.rotation.x, skeletonJoint.transform.rotation.y,
+       skeletonJoint.transform.rotation.z, skeletonJoint.transform.rotation.w);
     } 
      /*   
     float getPitch(tf::Quaternion &q)
@@ -311,13 +315,11 @@ class UserTracker
         KDL::Rotation rotation(m[0], m[1], m[2],
         					   m[3], m[4], m[5],
         					   m[6], m[7], m[8]);
-        printf("m[] %f %f %f %f %f %f %f %f %f\n",m[0], m[1], m[2],m[3], m[4], m[5],m[6], m[7], m[8]);
+        //printf("m[] %f %f %f %f %f %f %f %f %f\n",m[0], m[1], m[2],m[3], m[4], m[5],m[6], m[7], m[8]);
         double qx, qy, qz, qw;
         rotation.GetQuaternion(qx, qy, qz, qw);
               
-        double roll, pitch, yaw;
-        rotation.RPY(roll, pitch, yaw);
-        
+       
         tf::Transform transform;
         ros::Time t;
         
@@ -363,9 +365,20 @@ class UserTracker
       
         //skeletonJoint.transform = transform;
 
-        skeletonJoint.roll = atan2(m[7],m[8]);//roll;//tf::Quaternion(qx, qy, qz, qw).getRoll();
-        skeletonJoint.pitch = pitch;//tf::Quaternion(qx, qy, qz, qw).getPitch();
-        skeletonJoint.yaw = yaw;//tf::Quaternion(qx, qy, qz, qw).getYaw();
+        double roll, pitch, yaw;
+        //rotation.RPY(roll, pitch, yaw);
+        //btQuaternion q(qx, qy, qz, qw);
+        //tf::Matrix3x3(q).getRPY(roll, pitch, yaw);
+ 
+        skeletonJoint.roll = m[8]!=0? atan(m[7]/m[8]):0;
+        skeletonJoint.pitch = atan(-m[6]/sqrt(m[7]*m[7]+m[8]*m[8]));
+        skeletonJoint.yaw = m[0]!=0? atan(m[3]/m[0]) : 0;
+        
+        //velocities
+        skeletonJoint.velocity.angular.z = 4.0 * atan2(transform.getOrigin().y(),
+                                        transform.getOrigin().x());
+        skeletonJoint.velocity.linear.x = 0.5 * sqrt(pow(transform.getOrigin().x(), 2) +
+                                        pow(transform.getOrigin().y(), 2));
         
         
         br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), frame_id, child_frame_id));
@@ -389,28 +402,14 @@ class UserTracker
     
           galileo::Skeleton skeleton;
   
-          publishTransform(user, XN_SKEL_HEAD, frame_id, "head", skeleton.head);
           publishTransform(user, XN_SKEL_TORSO, frame_id, "torso", skeleton.torso);
-
-          publishTransform(user, XN_SKEL_LEFT_SHOULDER, frame_id, "left_shoulder", skeleton.left_shoulder);
-          publishTransform(user, XN_SKEL_LEFT_ELBOW, frame_id, "left_elbow", skeleton.left_elbow);
-          publishTransform(user, XN_SKEL_LEFT_HAND, frame_id, "left_hand", skeleton.left_hand);
-          publishTransform(user, XN_SKEL_LEFT_HIP, frame_id, "left_hip", skeleton.left_hip);
-        
-          publishTransform(user, XN_SKEL_RIGHT_SHOULDER, frame_id, "right_shoulder", skeleton.right_shoulder);
-          publishTransform(user, XN_SKEL_RIGHT_ELBOW, frame_id, "right_elbow", skeleton.right_elbow);
-          publishTransform(user, XN_SKEL_RIGHT_HAND, frame_id, "right_hand", skeleton.right_hand); 
-          publishTransform(user, XN_SKEL_RIGHT_HIP, frame_id, "right_hip", skeleton.right_hip);
-          
-	        skeleton.userid = user;
+          publishTransform(user, XN_SKEL_LEFT_SHOULDER, frame_id, "right_hand", skeleton.right_hand);
+	        
+          skeleton.userid = user;
           skls.skeletons.push_back(skeleton);
 
-          //skeleton_pub.publish(skeleton);
+          skeleton_pub.publish(skls);
 
-          //checkUserPose(user);           
-          //printJoinState(skeleton.left_hand);
-          //XnPoint3D left_hand = getBodyLocalization(user, XN_SKEL_LEFT_HAND);
-          //calculateDistancesSurface(left_hand, 10);
       }
   }
 
@@ -419,8 +418,10 @@ class UserTracker
 
     XnUserID users[15];
     XnUInt16 users_count = 15;
+  
     g_UserGenerator.GetUsers(users, users_count);
           
+
     for (int i = 0; i < users_count; ++i) {
           XnUserID user = users[i];
           if (!g_UserGenerator.GetSkeletonCap().IsTracking(user))
@@ -429,7 +430,7 @@ class UserTracker
           galileo::Skeleton skeleton;
           galileo::Features features;
 
-          publishTransform(user, XN_SKEL_RIGHT_HAND, frame_id, "right_hand", skeleton.right_hand);
+          //publishTransform(user, XN_SKEL_RIGHT_HAND, frame_id, "right_hand", skeleton.right_hand);
 
           pcl::KdTreeFLANN<pcl::PointXYZ> kdtree;
           pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ> ());
@@ -438,7 +439,7 @@ class UserTracker
 
           kdtree.setInputCloud (cloud);
 
-          XnPoint3D left_hand = getBodyLocalization(user, XN_SKEL_RIGHT_HAND);
+          XnPoint3D hand = getBodyLocalization(user, XN_SKEL_RIGHT_HAND);
           XnPoint3D torso = getBodyLocalization(user, XN_SKEL_TORSO);
 
           pcl::PointXYZ searchPoint; // this is joint position
@@ -446,9 +447,12 @@ class UserTracker
           geometry_msgs::Vector3 closestPointm;   
           geometry_msgs::Vector3 basePoint;
 
-          searchPoint.x = skeleton.right_hand.position.x;          
-          searchPoint.y = skeleton.right_hand.position.y;
-          searchPoint.z = skeleton.right_hand.position.z;
+          //searchPoint.x = skeleton.right_hand.position.x;          
+          //searchPoint.y = skeleton.right_hand.position.y;
+          //searchPoint.z = skeleton.right_hand.position.z;
+          searchPoint.x = hand.X;          
+          searchPoint.y = hand.Y;
+          searchPoint.z = hand.Z;
 
           basePoint.x = torso.X;
           basePoint.y = torso.Y;
@@ -463,14 +467,10 @@ class UserTracker
                     << " " << searchPoint.y 
                     << " " << searchPoint.z
                     << ") with K=" << K << std::endl;
-          std::cout << "skeleton joint position of hand (" << left_hand.X
-                    << " " << left_hand.Y
-                    << " " << left_hand.Z
-                    << ")" << std::endl;
+ 
+          //printJoinState(skeleton.right_hand);
 
-          printJoinState(skeleton.right_hand);
-
-          features.joint = skeleton.right_hand;
+          //features.joint = skeleton.right_hand;
 
           if ( kdtree.nearestKSearch (searchPoint, K, pointIdxNKNSearch, pointNKNSquaredDistance) > 0 )
           {
@@ -511,7 +511,7 @@ class UserTracker
           features.closestPoint = closestPointm;
           features.basePoint = basePoint;
 
-          pub.publish(features);
+          features_pub.publish(features);
     } // endfor
    
     
@@ -586,7 +586,7 @@ int main(int argc, char **argv) {
 	while (ros::ok()) {
 		g_Context.WaitAndUpdateAll();
 		
-    //tracker.publishTransforms(frame_id);
+    tracker.publishTransforms(frame_id);
     ros::spinOnce();
 		r.sleep();
 	}
