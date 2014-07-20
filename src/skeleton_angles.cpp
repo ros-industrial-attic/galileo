@@ -95,12 +95,7 @@ class UserTracker
     ros::Publisher skeleton_pub;
     ros::Subscriber sub;
     ros::Publisher features_pub;
-    
-    //const PointCloud::Ptr cloud;// = (new PointCloud);
-    //pcl::PCLPointCloud2 cloud;
-    //pcl::PointCloud<pcl::PointXYZ>::Ptr cloud;
-
-    galileo::Skeletons skls;        
+    // joint information
     galileo::SkeletonJoint rightJoint;
     galileo::SkeletonJoint torsoJoint;
 
@@ -124,17 +119,12 @@ class UserTracker
       min_pitch=-10.0;
       max_pitch=10.0;
       resolution = 1.0;
-      //sub = nh.subscribe<sensor_msgs::PointCloud2>("/output", 1, &UserTracker::surfaceDistance, this);    
-      //sub = nh.subscribe("/output", 1, &UserTracker::surfaceDistance, this);      
+      
       sub = nh.subscribe<PointCloud>("points", 1, &UserTracker::extractFeatures, this);
-      //sub = nh.subscribe<PointCloud>("points", 1, &UserTracker::callback, this);
 
       features_pub = nh.advertise<galileo::Features>("features", 1);
-      skeleton_pub = nh.advertise<galileo::Skeletons>("skeleton", 1);
+      //skeleton_pub = nh.advertise<galileo::Skeletons>("skeleton", 1);
 
-      //*cloud = (new PointCloud);
-      //PointCloud::Ptr msg (new PointCloud);
-   
     }
   
     float getMagnitude(KDL::Vector v){
@@ -361,8 +351,6 @@ class UserTracker
         double qx, qy, qz, qw;
         rotation.GetQuaternion(qx, qy, qz, qw);
         
-        //printf("q -> %f %f %f %f\n", qx, qy, qz, qw);
-        
         tf::Transform transform;
         ros::Time t;
         
@@ -406,7 +394,6 @@ class UserTracker
 	      skeletonJoint.transform.rotation.z = transform.getRotation().z();
 	      skeletonJoint.transform.rotation.w = transform.getRotation().w();
       
-        //skeletonJoint.transform = transform;
 
         double roll, pitch, yaw;
         tf::Quaternion q_orig(qx, qy, qz, qw);
@@ -418,11 +405,11 @@ class UserTracker
 
         tf::Matrix3x3(q).getRPY(roll, pitch, yaw);
  
-        skeletonJoint.roll = roll;//tf::getRoll(transform.getRotation()); //m[8]!=0? atan(m[7]/m[8]):0;
+        //skeletonJoint.roll = roll;//tf::getRoll(transform.getRotation()); //m[8]!=0? atan(m[7]/m[8]):0;
         skeletonJoint.pitch = pitch;//tf::getPitch(transform.getRotation()); //atan(-m[6]/sqrt(m[7]*m[7]+m[8]*m[8]));
         skeletonJoint.yaw = yaw;//tf::getYaw(transform.getRotation());//m[0]!=0? atan(m[3]/m[0]) : 0;*/
         
-        //velocities
+        //calculate velocities
         skeletonJoint.velocity.angular.z = 4.0 * atan2(transform.getOrigin().y(),
                                         transform.getOrigin().x());
         skeletonJoint.velocity.linear.x = 0.5 * sqrt(pow(transform.getOrigin().x(), 2) +
@@ -440,18 +427,15 @@ class UserTracker
       XnUInt16 users_count = 15;
       g_UserGenerator.GetUsers(users, users_count);
           
-      //galileo::Skeletons skls;        
-      //skls.skeletons.clear();
         
       for (int i = 0; i < users_count; ++i) {
           XnUserID user = users[i];
           if (!g_UserGenerator.GetSkeletonCap().IsTracking(user))
               continue;
     
-          //galileo::Skeleton skeleton;
-  
+      
           //publishTransform(user, XN_SKEL_TORSO, frame_id, "torso", torsoJoint);
-          publishTransform(user, XN_SKEL_LEFT_SHOULDER, frame_id, "right_hand", rightJoint);
+          publishTransform(user, XN_SKEL_RIGHT_HAND, frame_id, "right_hand", rightJoint);
 	        
           //skeleton.userid = user;
           //skls.skeletons.push_back(skeleton);
@@ -463,7 +447,6 @@ class UserTracker
 
   void extractFeatures(const PointCloud::ConstPtr& cloud)  
   {
-    //g_Context.WaitAndUpdateAll();
     
     XnUserID users[15];
     XnUInt16 users_count = 15;
