@@ -15,14 +15,16 @@
 
 #include <pcl_conversions/pcl_conversions.h>
 #include <pcl_ros/point_cloud.h>
-#include <sensor_msgs/PointCloud2.h>
-//#include <pcl/ros/conversions.h>
-#include <pcl/point_cloud.h>
+//#include <sensor_msgs/PointCloud2.h>
+//#include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <pcl/kdtree/kdtree_flann.h>
 #include <pcl/PCLPointCloud2.h>
 #include <pcl/features/normal_3d.h>
 #include <pcl/features/pfh.h>
+
+#include <tf/transform_datatypes.h>
+#include <tf/LinearMath/Quaternion.h>
 
 #include <iostream>
 #include <vector>
@@ -42,6 +44,8 @@ XnBool g_bNeedPose   = FALSE;
 XnChar g_strPose[20] = "";
 
 typedef pcl::PointCloud<pcl::PointXYZ> PointCloud;
+PointCloud::Ptr cloud;
+
 string frame_id("openni_depth_frame");
 
 void XN_CALLBACK_TYPE User_NewUser(xn::UserGenerator& generator, XnUserID nId, void* pCookie) {
@@ -91,20 +95,46 @@ class UserTracker
     ros::Publisher skeleton_pub;
     ros::Subscriber sub;
     ros::Publisher features_pub;
-      
+    
+    //const PointCloud::Ptr cloud;// = (new PointCloud);
+    //pcl::PCLPointCloud2 cloud;
+    //pcl::PointCloud<pcl::PointXYZ>::Ptr cloud;
+
+    galileo::Skeletons skls;        
+    galileo::SkeletonJoint rightJoint;
+    galileo::SkeletonJoint torsoJoint;
+
     int K;
+    
+    float min_yaw;
+    float max_yaw;
+    float min_pitch;
+    float max_pitch;
+    
+    float resolution; // resolution for the class
   
   public:
 
     UserTracker()
     {
       K = 5;
+
+      min_yaw=-15.0;
+      max_yaw=15.0;
+      min_pitch=-10.0;
+      max_pitch=10.0;
+      resolution = 1.0;
       //sub = nh.subscribe<sensor_msgs::PointCloud2>("/output", 1, &UserTracker::surfaceDistance, this);    
       //sub = nh.subscribe("/output", 1, &UserTracker::surfaceDistance, this);      
       sub = nh.subscribe<PointCloud>("points", 1, &UserTracker::extractFeatures, this);
+      //sub = nh.subscribe<PointCloud>("points", 1, &UserTracker::callback, this);
 
       features_pub = nh.advertise<galileo::Features>("features", 1);
       skeleton_pub = nh.advertise<galileo::Skeletons>("skeleton", 1);
+
+      //*cloud = (new PointCloud);
+      //PointCloud::Ptr msg (new PointCloud);
+   
     }
   
     float getMagnitude(KDL::Vector v){
@@ -288,6 +318,23 @@ class UserTracker
       return atan2(2*(x*y + w*z), w*w + x*x - y*y - z*z);
     }*/
     
+    int getClass(float xpitch, float xyaw)  
+    {
+       int label = 0;
+       for(float yaw=min_yaw; yaw < max_yaw; yaw = yaw + resolution)
+       {
+        for(float pitch=min_pitch; pitch < max_pitch; pitch = pitch + resolution)
+        { cout<<"["<<pitch<<" , "<<yaw<<"]"<<endl;
+          if(pitch==xpitch && yaw==xyaw) 
+            return label;
+          else           
+            label++;         
+        }
+        label++;
+       }
+      return -1;
+    }
+
     void publishTransform(XnUserID const& user, XnSkeletonJoint const& joint, 
                           string const& frame_id, string const& child_frame_id,
                           galileo::SkeletonJoint &skeletonJoint)
@@ -297,7 +344,7 @@ class UserTracker
         XnSkeletonJointPosition joint_position;
         g_UserGenerator.GetSkeletonCap().GetSkeletonJointPosition(user, joint, joint_position);
 
-        double x = -joint_position.position.X / 1000.0;
+        double x = joint_position.position.X / 1000.0;
         double y = joint_position.position.Y / 1000.0;
         double z = joint_position.position.Z / 1000.0;
 
@@ -305,21 +352,17 @@ class UserTracker
         g_UserGenerator.GetSkeletonCap().GetSkeletonJointOrientation(user, joint, joint_orientation);
 
         XnFloat* m = joint_orientation.orientation.elements;
-	      /*m[0] = -m[0];
-	      m[1] = -m[1];
-	      m[2] = -m[2];
-	      m[6] = -m[6];
-	      m[7] = -m[7];
-	      m[8] = -m[8];*/
-
+	
         KDL::Rotation rotation(m[0], m[1], m[2],
         					   m[3], m[4], m[5],
         					   m[6], m[7], m[8]);
-        //printf("m[] %f %f %f %f %f %f %f %f %f\n",m[0], m[1], m[2],m[3], m[4], m[5],m[6], m[7], m[8]);
+        
+        //get the quaternion of this matrix
         double qx, qy, qz, qw;
         rotation.GetQuaternion(qx, qy, qz, qw);
-              
-       
+        
+        //printf("q -> %f %f %f %f\n", qx, qy, qz, qw);
+        
         tf::Transform transform;
         ros::Time t;
         
@@ -330,8 +373,10 @@ class UserTracker
     
         tf::Transform change_frame;
         change_frame.setOrigin(tf::Vector3(0, 0, 0));
+
         tf::Quaternion frame_rotation;
         frame_rotation.setEulerZYX(1.5708, 0, 1.5708);
+      
         change_frame.setRotation(frame_rotation);
 
         transform = change_frame * transform;
@@ -351,9 +396,7 @@ class UserTracker
         skeletonJoint.name = child_frame_id;
 		    skeletonJoint.position = position;
 		    skeletonJoint.orientation = orientation;
-		    skeletonJoint.confidence = joint_position.fConfidence;
-
-        
+		    
         skeletonJoint.transform.translation.x = transform.getOrigin().x();
 	      skeletonJoint.transform.translation.y = transform.getOrigin().y();
   	    skeletonJoint.transform.translation.z = transform.getOrigin().z();
@@ -366,23 +409,27 @@ class UserTracker
         //skeletonJoint.transform = transform;
 
         double roll, pitch, yaw;
-        //rotation.RPY(roll, pitch, yaw);
-        //btQuaternion q(qx, qy, qz, qw);
-        //tf::Matrix3x3(q).getRPY(roll, pitch, yaw);
+        tf::Quaternion q_orig(qx, qy, qz, qw);
+        tf::Quaternion q_fix(0.70710678, 0., 0., 0.70710678);
+
+        tf::Quaternion q_rot =  q_fix * q_orig * q_fix.inverse();
+
+        tf::Quaternion q(q_rot.x(), q_rot.y(), q_rot.z(), q_rot.w());        
+
+        tf::Matrix3x3(q).getRPY(roll, pitch, yaw);
  
-        skeletonJoint.roll = m[8]!=0? atan(m[7]/m[8]):0;
-        skeletonJoint.pitch = atan(-m[6]/sqrt(m[7]*m[7]+m[8]*m[8]));
-        skeletonJoint.yaw = m[0]!=0? atan(m[3]/m[0]) : 0;
+        skeletonJoint.roll = roll;//tf::getRoll(transform.getRotation()); //m[8]!=0? atan(m[7]/m[8]):0;
+        skeletonJoint.pitch = pitch;//tf::getPitch(transform.getRotation()); //atan(-m[6]/sqrt(m[7]*m[7]+m[8]*m[8]));
+        skeletonJoint.yaw = yaw;//tf::getYaw(transform.getRotation());//m[0]!=0? atan(m[3]/m[0]) : 0;*/
         
         //velocities
         skeletonJoint.velocity.angular.z = 4.0 * atan2(transform.getOrigin().y(),
                                         transform.getOrigin().x());
         skeletonJoint.velocity.linear.x = 0.5 * sqrt(pow(transform.getOrigin().x(), 2) +
                                         pow(transform.getOrigin().y(), 2));
-        
-        
-        br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), frame_id, child_frame_id));
 
+        br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), frame_id, child_frame_id));
+        
         return;        
        
     }
@@ -393,36 +440,37 @@ class UserTracker
       XnUInt16 users_count = 15;
       g_UserGenerator.GetUsers(users, users_count);
           
-      galileo::Skeletons skls;        
-         
+      //galileo::Skeletons skls;        
+      //skls.skeletons.clear();
+        
       for (int i = 0; i < users_count; ++i) {
           XnUserID user = users[i];
           if (!g_UserGenerator.GetSkeletonCap().IsTracking(user))
               continue;
     
-          galileo::Skeleton skeleton;
+          //galileo::Skeleton skeleton;
   
-          publishTransform(user, XN_SKEL_TORSO, frame_id, "torso", skeleton.torso);
-          publishTransform(user, XN_SKEL_LEFT_SHOULDER, frame_id, "right_hand", skeleton.right_hand);
+          //publishTransform(user, XN_SKEL_TORSO, frame_id, "torso", torsoJoint);
+          publishTransform(user, XN_SKEL_LEFT_SHOULDER, frame_id, "right_hand", rightJoint);
 	        
-          skeleton.userid = user;
-          skls.skeletons.push_back(skeleton);
-
-          skeleton_pub.publish(skls);
+          //skeleton.userid = user;
+          //skls.skeletons.push_back(skeleton);
+          
+          //skeleton_pub.publish(skls);
 
       }
   }
 
-  void extractFeatures(const PointCloud::ConstPtr& cloud)
+  void extractFeatures(const PointCloud::ConstPtr& cloud)  
   {
-
+    //g_Context.WaitAndUpdateAll();
+    
     XnUserID users[15];
     XnUInt16 users_count = 15;
-  
+    
     g_UserGenerator.GetUsers(users, users_count);
-          
-
-    for (int i = 0; i < users_count; ++i) {
+    
+		for (int i = 0; i < users_count; ++i) {
           XnUserID user = users[i];
           if (!g_UserGenerator.GetSkeletonCap().IsTracking(user))
             continue;                
@@ -430,14 +478,12 @@ class UserTracker
           galileo::Skeleton skeleton;
           galileo::Features features;
 
-          //publishTransform(user, XN_SKEL_RIGHT_HAND, frame_id, "right_hand", skeleton.right_hand);
-
           pcl::KdTreeFLANN<pcl::PointXYZ> kdtree;
           pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ> ());
           pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> ne;
           pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>);
 
-          kdtree.setInputCloud (cloud);
+          kdtree.setInputCloud (cloud); // wait const PointCloudConstPtr &cloud or const PointCloudConstPtr &cloud
 
           XnPoint3D hand = getBodyLocalization(user, XN_SKEL_RIGHT_HAND);
           XnPoint3D torso = getBodyLocalization(user, XN_SKEL_TORSO);
@@ -447,9 +493,6 @@ class UserTracker
           geometry_msgs::Vector3 closestPointm;   
           geometry_msgs::Vector3 basePoint;
 
-          //searchPoint.x = skeleton.right_hand.position.x;          
-          //searchPoint.y = skeleton.right_hand.position.y;
-          //searchPoint.z = skeleton.right_hand.position.z;
           searchPoint.x = hand.X;          
           searchPoint.y = hand.Y;
           searchPoint.z = hand.Z;
@@ -467,10 +510,6 @@ class UserTracker
                     << " " << searchPoint.y 
                     << " " << searchPoint.z
                     << ") with K=" << K << std::endl;
- 
-          //printJoinState(skeleton.right_hand);
-
-          //features.joint = skeleton.right_hand;
 
           if ( kdtree.nearestKSearch (searchPoint, K, pointIdxNKNSearch, pointNKNSquaredDistance) > 0 )
           {
@@ -480,7 +519,6 @@ class UserTracker
                    << " " << cloud->points[ pointIdxNKNSearch[i] ].z 
                    << " (squared distance: " << pointNKNSquaredDistance[i] << ")" << std::endl;
                features.distances.push_back(pointNKNSquaredDistance[i]); 
-               //std::sort(features.distances.begin(), features.distances.end());
             }
           }
           
@@ -508,14 +546,53 @@ class UserTracker
                       << " " << normals->points[i].normal_z << std::endl;
           */
 
+          features.rightJoint = rightJoint;
+          //features.torsoJoint = torsoJoint;
+
           features.closestPoint = closestPointm;
           features.basePoint = basePoint;
 
-          features_pub.publish(features);
+          // we publish only if we get angles between param and calculate the class of features
+          int label = getClass(rightJoint.pitch, rightJoint.yaw);
+          if(label=!-1)
+          {
+            features.label = label;
+            features_pub.publish(features);
+          }
+          
+          
     } // endfor
    
     
-  }  
+  }
+  /*
+  readBagFile(std::string filename)
+  {
+    rosbag::Bag bag;
+
+    bag.open(filename, rosbag::bagmode::Read);
+
+    std::vector<std::string> topics;
+
+    topics.push_back(std::string("chatter"));
+    topics.push_back(std::string("numbers"));
+
+    rosbag::View view(bag, rosbag::TopicQuery(topics));
+
+    foreach(rosbag::MessageInstance const m, view)
+    {
+        std_msgs::String::ConstPtr s = m.instantiate<std_msgs::String>();
+        if (s != NULL)
+            ASSERT_EQ(s->data, std::string("foo"));
+
+        std_msgs::Int32::ConstPtr i = m.instantiate<std_msgs::Int32>();
+        if (i != NULL)
+            ASSERT_EQ(i->data, 42);
+    }
+
+    bag.close();    
+    
+  } */ 
 
 };
 
@@ -583,14 +660,13 @@ int main(int argc, char **argv) {
  
   pnh.getParam("camera_frame_id", frame_id);
   
-	while (ros::ok()) {
-		g_Context.WaitAndUpdateAll();
-		
-    tracker.publishTransforms(frame_id);
+  while (ros::ok()) {
+	  g_Context.WaitAndUpdateAll();
+	  tracker.publishTransforms(frame_id);
     ros::spinOnce();
 		r.sleep();
-	}
+  }
 
 	g_Context.Shutdown();
 	return 0;
-}
+} 

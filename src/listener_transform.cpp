@@ -24,7 +24,7 @@ void getTransform(tf::StampedTransform transform,
     ros::Time now = ros::Time::now();
     (*listener).waitForTransform(from, to, ros::Time(0), ros::Duration(3.0));
     (*listener).lookupTransform(from, to, ros::Time(0), transform);
-    //(*listener).lookupTransform(from, to, ros::Time(0), transform);
+
   }
     /*catch (tf::TransformException ex){
         ROS_ERROR("%s",ex.what());
@@ -95,8 +95,6 @@ int main(int argc, char** argv)
 	while(node.ok())
   {
 	  tf::StampedTransform transform;
-		tf::StampedTransform rShoulderToRElbow;
-    tf::StampedTransform rElbowToRHand;
 		
     //geometry_msgs::Twist velocity;
     try
@@ -104,12 +102,16 @@ int main(int argc, char** argv)
       //getTransform(rShoulderToRElbow, listener, "/right_shoulder_2", "/right_elbow_2");
       //getTransform(&rElbowToRHand, listener, "/right_elbow_2", "/right_hand_2");
       //listener.lookupTransform("right_shoulder_2", "right_elbow_2", ros::Time(0), rShoulderToRElbow);
-	    (*listener).lookupTransform("/right_elbow_2", "/right_hand_2", ros::Time(0), rElbowToRHand);
+	    //(*listener).lookupTransform("/right_elbow_2", "/right_hand_2", ros::Time(0), rElbowToRHand);
 
-     	printf("(%f, %f, %f)",  
+      //(*listener).waitForTransform("/map", "/base_link", ros::Time(0), ros::Duration(1.0));
+      (*listener).lookupTransform("/base_link", "/right_hand_1", ros::Time(0), transform);
+ 
+      ROS_INFO("Got a transform! x = %f, y = %f",transform.getOrigin().x(),transform.getOrigin().y());
+     	/*printf("(%f, %f, %f)",  
               rElbowToRHand.getOrigin()[0],
 						  rElbowToRHand.getOrigin()[1],
-						  rElbowToRHand.getOrigin()[2]);
+						  rElbowToRHand.getOrigin()[2]);*/
 			
     }
     catch (tf::TransformException ex)
