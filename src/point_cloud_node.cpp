@@ -32,7 +32,7 @@ int main (int argc, char** argv)
 
   ros::Subscriber sub = nh.subscribe("input", 1, cloud_cb);
 
-  pub = nh.advertise<sensor_msgs::PointCloud2> ("output", 1);
+  pub = nh.advertise<sensor_msgs::PointCloud2> ("surface", 1);
   
   ros::spin ();
 }

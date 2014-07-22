@@ -31,9 +31,16 @@
 #include <ctime>
 
 
-#define pi 3.141592653589793
+#ifndef PI
+#define PI 3.14159265359
+#endif
+#ifndef HALFPI
+#define HALFPI 1.57079632679
+#endif
+#ifndef QUARTPI
+#define QUARTPI 0.785398163397
+#endif
 
-//using std::string;
 using namespace std;
 
 xn::Context        g_Context;
@@ -114,10 +121,10 @@ class UserTracker
     {
       K = 5;
 
-      min_yaw=-15.0;
-      max_yaw=15.0;
-      min_pitch=-10.0;
-      max_pitch=10.0;
+      min_yaw = -15.0;
+      max_yaw = 15.0;
+      min_pitch = -10.0;
+      max_pitch = 10.0;
       resolution = 1.0;
       
       sub = nh.subscribe<PointCloud>("points", 1, &UserTracker::extractFeatures, this);
@@ -149,20 +156,10 @@ class UserTracker
       XnSkeletonJointPosition joint_position;
       g_UserGenerator.GetSkeletonCap().GetSkeletonJointPosition(user, joint, joint_position);
 
-      // Make sure that all joints are found with enough confidence...
-      if (joint_position.fConfidence < 0.7)
-      {
-        pt.X = 0.0;
-        pt.Y = 0.0;
-        pt.Z = 0.0;
-        
-        return pt;
-      }
-
       pt = joint_position.position;
-      pt.X = pt.X/1000; 
+      /*pt.X = pt.X/1000; 
       pt.Y = pt.Y/1000;
-      pt.Z = pt.Z/1000;
+      pt.Z = pt.Z/1000;*/
 
       return pt;
     }
@@ -222,7 +219,7 @@ class UserTracker
         {
           // calculate join angle between limps
           float theta = acos((dot(v1,v2))/(v1_magnitude*v2_magnitude));
-          return theta * 180 / pi;
+          return theta * 180 / PI;
         }
         else
           return -999.0;
@@ -239,22 +236,22 @@ class UserTracker
       
       // Right elbow angle
       float right_elbow_angle = getLimbAngle(userid, XN_SKEL_RIGHT_SHOULDER, XN_SKEL_RIGHT_ELBOW,
-        XN_SKEL_RIGHT_HAND) * pi / 180.0;
+        XN_SKEL_RIGHT_HAND) * PI / 180.0;
       printf("Right elbow angle %f\n", right_elbow_angle);
 
       // Left elbow angle
       float left_elbow_angle = getLimbAngle(userid, XN_SKEL_LEFT_SHOULDER, 
-        XN_SKEL_LEFT_ELBOW, XN_SKEL_LEFT_HAND) * pi / 180.0;
+        XN_SKEL_LEFT_ELBOW, XN_SKEL_LEFT_HAND) * PI / 180.0;
       printf("Left elbow angle: %f\n", left_elbow_angle);
 
       // right shoulder angle
       float right_shoulder_angle = getLimbAngle(userid, XN_SKEL_RIGHT_HIP, 
-        XN_SKEL_RIGHT_SHOULDER, XN_SKEL_RIGHT_ELBOW) * pi / 180.0;
+        XN_SKEL_RIGHT_SHOULDER, XN_SKEL_RIGHT_ELBOW) * PI / 180.0;
       printf("Right Shoulder angle %f\n", right_shoulder_angle);
 
       // Left shoulder angle
       float left_shoulder_angle = getLimbAngle(userid, XN_SKEL_LEFT_HIP, 
-        XN_SKEL_LEFT_SHOULDER, XN_SKEL_LEFT_ELBOW) * pi / 180.0;
+        XN_SKEL_LEFT_SHOULDER, XN_SKEL_LEFT_ELBOW) * PI / 180.0;
       printf("Left Shoulder angle %f\n", left_shoulder_angle);
 
     }
@@ -282,10 +279,10 @@ class UserTracker
     void printJoinState(galileo::SkeletonJoint &skeletonJoint)
     {
       //ROS_DEBUG("angles: %.4f, %.4f, %.4f", skeletonJoint.roll, skeletonJoint.pitch, skeletonJoint.yaw);
-      printf("orientation:(%f, %f, %f)  pos:( %f, %f, %f) \n roll pitch yaw(%f, %f ,%f) rotation(%f, %f ,%f, %f) \n  ",
+      printf("orientation:(%f, %f, %f)  pos:( %f, %f, %f) \n roll pitch yaw(%f ,%f) rotation(%f, %f ,%f, %f) \n  ",
        skeletonJoint.orientation.x, skeletonJoint.orientation.y, skeletonJoint.orientation.z,
        skeletonJoint.position.x, skeletonJoint.position.y, skeletonJoint.position.z,
-       skeletonJoint.roll, skeletonJoint.pitch, skeletonJoint.yaw,
+       skeletonJoint.pitch, skeletonJoint.yaw,
        skeletonJoint.transform.rotation.x, skeletonJoint.transform.rotation.y,
        skeletonJoint.transform.rotation.z, skeletonJoint.transform.rotation.w);
     } 
@@ -311,10 +308,10 @@ class UserTracker
     int getClass(float xpitch, float xyaw)  
     {
        int label = 0;
-       for(float yaw=min_yaw; yaw < max_yaw; yaw = yaw + resolution)
+       for(float yaw=min_yaw; yaw <= max_yaw; yaw = yaw + resolution)
        {
-        for(float pitch=min_pitch; pitch < max_pitch; pitch = pitch + resolution)
-        { cout<<"["<<pitch<<" , "<<yaw<<"]"<<endl;
+        for(float pitch=min_pitch; pitch <= max_pitch; pitch = pitch + resolution)
+        { //cout<<"["<<pitch<<" , "<<yaw<<"]"<<endl;
           if(pitch==xpitch && yaw==xyaw) 
             return label;
           else           
@@ -333,8 +330,13 @@ class UserTracker
 
         XnSkeletonJointPosition joint_position;
         g_UserGenerator.GetSkeletonCap().GetSkeletonJointPosition(user, joint, joint_position);
-
-        double x = joint_position.position.X / 1000.0;
+        /*
+        double x = -joint_position.position.X / 1000.0;
+        double y = joint_position.position.Y / 1000.0;
+        double z = joint_position.position.Z / 1000.0;
+        */
+        
+        double x = -joint_position.position.X / 1000.0;
         double y = joint_position.position.Y / 1000.0;
         double z = joint_position.position.Z / 1000.0;
 
@@ -342,11 +344,18 @@ class UserTracker
         g_UserGenerator.GetSkeletonCap().GetSkeletonJointOrientation(user, joint, joint_orientation);
 
         XnFloat* m = joint_orientation.orientation.elements;
-	
+        /*
+	      m[0] = -m[0];
+	      m[1] = -m[1];
+	      m[2] = -m[2];
+	      m[6] = -m[6];
+	      m[7] = -m[7];
+	      m[8] = -m[8];*/	
+
         KDL::Rotation rotation(m[0], m[1], m[2],
         					   m[3], m[4], m[5],
         					   m[6], m[7], m[8]);
-        
+        printf("m[] %f %f %f %f %f %f %f %f %f\n",m[0], m[1], m[2],m[3], m[4], m[5],m[6], m[7], m[8]);
         //get the quaternion of this matrix
         double qx, qy, qz, qw;
         rotation.GetQuaternion(qx, qy, qz, qw);
@@ -363,7 +372,7 @@ class UserTracker
         change_frame.setOrigin(tf::Vector3(0, 0, 0));
 
         tf::Quaternion frame_rotation;
-        frame_rotation.setEulerZYX(1.5708, 0, 1.5708);
+        frame_rotation.setEulerZYX(HALFPI, 0, HALFPI);
       
         change_frame.setRotation(frame_rotation);
 
@@ -400,8 +409,11 @@ class UserTracker
         tf::Quaternion q_fix(0.70710678, 0., 0., 0.70710678);
 
         tf::Quaternion q_rot =  q_fix * q_orig * q_fix.inverse();
+        //tf::Quaternion q_rot =  frame_rotation * q_orig * q_fix.inverse();
 
-        tf::Quaternion q(q_rot.x(), q_rot.y(), q_rot.z(), q_rot.w());        
+        //tf::Quaternion q(q_rot.x(), q_rot.y(), q_rot.z(), q_rot.w());        
+        tf::Quaternion q(transform.getRotation().x(), transform.getRotation().y(), 
+                         transform.getRotation().z(), transform.getRotation().w());        
 
         tf::Matrix3x3(q).getRPY(roll, pitch, yaw);
  
@@ -537,12 +549,15 @@ class UserTracker
 
           // we publish only if we get angles between param and calculate the class of features
           int label = getClass(rightJoint.pitch, rightJoint.yaw);
-          if(label=!-1)
+          /*if(label=!-1)
           {
             features.label = label;
             features_pub.publish(features);
-          }
+          }*/
           
+          features.label = label;
+          features_pub.publish(features);
+         
           
     } // endfor
    

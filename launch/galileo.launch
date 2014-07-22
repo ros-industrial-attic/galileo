@@ -1,0 +1,9 @@
+<launch>
+	<node name="skeleton_angles_node" pkg="galileo" type="skeleton_angles_node"  output="screen" respawn="true">
+		<remap from="points" to="/output" />
+	</node>
+
+  <node name="point_cloud_node" pkg="galileo" type="point_cloud_node" output="screen">
+    <remap from="input" to="/camera/depth/points" />
+  </node>
+</launch>
