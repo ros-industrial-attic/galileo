@@ -82,23 +82,13 @@ catkin_package(
 
 
 ## Declare a cpp executable
-add_executable(capture_image_node src/capture_image_node.cpp)
-target_link_libraries(capture_image_node
-   ${catkin_LIBRARIES}
-)
-
-add_executable(capture_image_node2 src/capture_image_node2.cpp)
-target_link_libraries(capture_image_node2
-   ${catkin_LIBRARIES}
-)
-
 include_directories(${OPENNI_INCLUDEDIR} /usr/include/nite)
 add_executable(listener_transform_node src/listener_transform.cpp)
 target_link_libraries(listener_transform_node ${catkin_LIBRARIES} ${OPENNI_LIBRARIES})
 
 include_directories(${OPENNI_INCLUDEDIR} /usr/include/nite)
-add_executable(skeleton_angles_node src/skeleton_angles.cpp)
-target_link_libraries(skeleton_angles_node 
+add_executable(extract_features_node src/extract_features_node.cpp)
+target_link_libraries(extract_features_node 
   ${catkin_LIBRARIES} 
   ${OpenNI_LIBRARIES}
   ${orocos_kdl_LIBRARIES}
@@ -112,7 +102,7 @@ target_link_libraries(point_cloud_node
 #  ${OpenCV_LIBS}
 )
 
-install(TARGETS capture_image_node
+install(TARGETS extract_features_node 
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
@@ -124,4 +114,3 @@ install(DIRECTORY include/${PROJECT_NAME}/
   FILES_MATCHING PATTERN "*.h"
   PATTERN ".svn" EXCLUDE
 )
-
