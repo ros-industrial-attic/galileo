@@ -82,9 +82,13 @@ catkin_package(
 
 
 ## Declare a cpp executable
+
 include_directories(${OPENNI_INCLUDEDIR} /usr/include/nite)
 add_executable(listener_transform_node src/listener_transform.cpp)
 target_link_libraries(listener_transform_node ${catkin_LIBRARIES} ${OPENNI_LIBRARIES})
+
+add_executable(convert_bagfile_node src/convert_bagfile.cpp)
+target_link_libraries(convert_bagfile_node ${catkin_LIBRARIES})
 
 include_directories(${OPENNI_INCLUDEDIR} /usr/include/nite)
 add_executable(extract_features_node src/extract_features_node.cpp)

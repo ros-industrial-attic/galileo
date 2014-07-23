@@ -24,7 +24,7 @@
 #include <pcl/features/pfh.h>
 
 #include <tf/transform_datatypes.h>
-#include <tf/LinearMath/Quaternion.h>
+//#include <tf/LinearMath/Quaternion.h>
 
 #include <iostream>
 #include <vector>
@@ -102,8 +102,9 @@ class UserTracker
     ros::Publisher skeleton_pub;
     ros::Subscriber sub;
     ros::Publisher features_pub;
+
     // joint information
-    galileo::SkeletonJoint rightJoint;
+    galileo::SkeletonJoint rightHandJoint;
     galileo::SkeletonJoint torsoJoint;
 
     int K;
@@ -336,9 +337,9 @@ class UserTracker
         double z = joint_position.position.Z / 1000.0;
         */
         
-        double x = -joint_position.position.X / 1000.0;
-        double y = joint_position.position.Y / 1000.0;
-        double z = joint_position.position.Z / 1000.0;
+        double x = -joint_position.position.X;
+        double y = joint_position.position.Y;
+        double z = joint_position.position.Z;
 
         XnSkeletonJointOrientation joint_orientation;
         g_UserGenerator.GetSkeletonCap().GetSkeletonJointOrientation(user, joint, joint_orientation);
@@ -447,7 +448,7 @@ class UserTracker
     
       
           //publishTransform(user, XN_SKEL_TORSO, frame_id, "torso", torsoJoint);
-          publishTransform(user, XN_SKEL_RIGHT_HAND, frame_id, "right_hand", rightJoint);
+          publishTransform(user, XN_SKEL_RIGHT_HAND, frame_id, "right_hand", rightHandJoint);
 	        
           //skeleton.userid = user;
           //skls.skeletons.push_back(skeleton);
@@ -541,14 +542,14 @@ class UserTracker
                       << " " << normals->points[i].normal_z << std::endl;
           */
 
-          features.rightJoint = rightJoint;
+          features.rightHand = rightHandJoint;
           //features.torsoJoint = torsoJoint;
 
           features.closestPoint = closestPointm;
           features.basePoint = basePoint;
 
           // we publish only if we get angles between param and calculate the class of features
-          int label = getClass(rightJoint.pitch, rightJoint.yaw);
+          int label = getClass(rightHandJoint.pitch, rightHandJoint.yaw);
           /*if(label=!-1)
           {
             features.label = label;
@@ -563,35 +564,7 @@ class UserTracker
    
     
   }
-  /*
-  readBagFile(std::string filename)
-  {
-    rosbag::Bag bag;
-
-    bag.open(filename, rosbag::bagmode::Read);
-
-    std::vector<std::string> topics;
-
-    topics.push_back(std::string("chatter"));
-    topics.push_back(std::string("numbers"));
-
-    rosbag::View view(bag, rosbag::TopicQuery(topics));
-
-    foreach(rosbag::MessageInstance const m, view)
-    {
-        std_msgs::String::ConstPtr s = m.instantiate<std_msgs::String>();
-        if (s != NULL)
-            ASSERT_EQ(s->data, std::string("foo"));
-
-        std_msgs::Int32::ConstPtr i = m.instantiate<std_msgs::Int32>();
-        if (i != NULL)
-            ASSERT_EQ(i->data, 42);
-    }
-
-    bag.close();    
-    
-  } */ 
-
+  
 };
 
 #define CHECK_RC(nRetVal, what)										\
