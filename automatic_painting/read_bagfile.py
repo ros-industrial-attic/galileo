@@ -48,7 +48,7 @@ def getHeader(msg):
 
     #Add handlers as necessary for each message type:
     		
-    if (msgType == '_galileo__Features'):
+    if (msgType == '_automatic_painting__Features'):
         headerRow = ["label", "positionX",  "positionY",  "positionZ",  "orientationX" "orientationY", \
         "orientationZ", "orientationW", "pitch", "yaw"]
     else:
@@ -65,7 +65,7 @@ def getColumns(msg):
     msgType = msgType[msgType.index('.')+1:]	
     msgType = msgType[:msgType.index('\'')]	
 
-    if (msgType == '_galileo__Features'):
+    if (msgType == '_automatic_painting__Features'):
         # 21 cols
         columns = [msg.cls, msg.rightHand.position.x, msg.rightHand.position.y, msg.rightHand.position.z, \
         msg.rightHand.orientation.x, msg.rightHand.orientation.y, msg.rightHand.orientation.z, \

@@ -11,8 +11,8 @@
 #include <XnCodecIDs.h>
 #include <XnCppWrapper.h>
 
-#include <galileo/Skeletons.h>
-#include <galileo/Features.h>
+#include <automatic_painting/Skeletons.h>
+#include <automatic_painting/Features.h>
 
 #include <pcl_conversions/pcl_conversions.h>
 #include <pcl_ros/point_cloud.h>
@@ -106,8 +106,8 @@ class UserTracker
     ros::Publisher features_pub;
 
     // joint information
-    galileo::SkeletonJoint rightHandJoint;
-    galileo::SkeletonJoint torsoJoint;
+    automatic_painting::SkeletonJoint rightHandJoint;
+    automatic_painting::SkeletonJoint torsoJoint;
 
     int K;
     
@@ -132,7 +132,7 @@ class UserTracker
       
       sub = nh.subscribe<PointCloud>("points", 1, &UserTracker::extractFeatures, this);
 
-      features_pub = nh.advertise<galileo::Features>("features", 1);
+      features_pub = nh.advertise<automatic_painting::Features>("features", 1);
       //skeleton_pub = nh.advertise<galileo::Skeletons>("skeleton", 1);
 
     }
@@ -303,7 +303,7 @@ class UserTracker
 
     void publishTransform(XnUserID const& user, XnSkeletonJoint const& joint, 
                           string const& frame_id, string const& child_frame_id,
-                          galileo::SkeletonJoint &skeletonJoint)
+                          automatic_painting::SkeletonJoint &skeletonJoint)
     {
         static tf::TransformBroadcaster br; 
 
@@ -445,8 +445,8 @@ class UserTracker
           if (!g_UserGenerator.GetSkeletonCap().IsTracking(user))
             continue;                
         
-          galileo::Skeleton skeleton;
-          galileo::Features features;
+          automatic_painting::Skeleton skeleton;
+          automatic_painting::Features features;
 
           pcl::KdTreeFLANN<pcl::PointXYZ> kdtree;
           pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ> ());
@@ -545,7 +545,7 @@ int main(int argc, char **argv) {
   ros::init(argc, argv, "galileo");
   ros::NodeHandle nh;
   
-  string configFilename = ros::package::getPath("galileo") + "/galileo.xml";
+  string configFilename = ros::package::getPath("automatic_painting") + "/galileo.xml";
   XnStatus nRetVal = g_Context.InitFromXmlFile(configFilename.c_str());
   CHECK_RC(nRetVal, "InitFromXml");
 

@@ -1,9 +1,0 @@
-<launch>
-	<node name="extract_features_node" pkg="galileo" type="extract_features_node"  output="screen" respawn="true">
-		<remap from="points" to="/surface" />
-	</node>
-
-  <node name="point_cloud_node" pkg="galileo" type="point_cloud_node" output="screen" respawn="true">
-    <remap from="input" to="/camera/depth/points" />
-  </node>
-</launch>

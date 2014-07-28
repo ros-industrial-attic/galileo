@@ -79,15 +79,7 @@ catkin_package(
     image_geometry
 )
 
-
-
 ## Declare a cpp executable
-
-include_directories(${OPENNI_INCLUDEDIR} /usr/include/nite)
-add_executable(listener_transform_node src/listener_transform.cpp)
-target_link_libraries(listener_transform_node ${catkin_LIBRARIES} ${OPENNI_LIBRARIES})
-
-
 include_directories(${OPENNI_INCLUDEDIR} /usr/include/nite)
 add_executable(extract_features_node src/extract_features_node.cpp)
 target_link_libraries(extract_features_node 
@@ -108,7 +100,6 @@ target_link_libraries(train_data_node
   ${catkin_LIBRARIES}
   ${OpenCV_LIBS}
 )
-
 
 install(TARGETS extract_features_node train_data_node 
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
