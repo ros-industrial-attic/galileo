@@ -58,7 +58,7 @@ def getHeader(msg):
     return headerRow
 
 
-def getColumns(t, msg):
+def getColumns(msg):
 
     #this function gets the data that is necessary for the csv file - one row at a time from the current msg.
     msgType = str(type(msg))	
@@ -66,9 +66,12 @@ def getColumns(t, msg):
     msgType = msgType[:msgType.index('\'')]	
 
     if (msgType == '_galileo__Features'):
-        columns = [t, msg.label, msg.rightHand.position.x, msg.rightHand.position.y, \
-        msg.rightHand.position.z, msg.rightHand.orientation.x, msg.rightHand.orientation.y, \
-        msg.rightHand.orientation.z, msg.rightHand.orientation.w, msg.rightHand.pitch, msg.rightHand.yaw]
+        # 21 cols
+        columns = [msg.cls, msg.rightHand.position.x, msg.rightHand.position.y, msg.rightHand.position.z, \
+        msg.rightHand.orientation.x, msg.rightHand.orientation.y, msg.rightHand.orientation.z, \
+        msg.rightHand.orientation.w, msg.rightHand.pitch, msg.rightHand.yaw, msg.closestPoint.x, msg.closestPoint.y, \
+        msg.closestPoint.z, msg.basePoint.x, msg.basePoint.y, msg.basePoint.z, \
+        msg.distances[0], msg.distances[1], msg.distances[2], msg.distances[3], msg.distances[4]]
     else:
         rospy.logerror("Unexpected error - AGH!")
         sys.exit(2)
@@ -76,11 +79,10 @@ def getColumns(t, msg):
     return columns
 
 def extract_data (bag, topic, inputFileName):
-    outputFileName = os.path.splitext(os.path.split(inputFileName)[1])[0] + topic.replace("/","-") + ".txt"
+    
+    outFile = "output" + topic.replace("/","-") + ".csv"
     print "[OK] Printing %s" % topic
-    print "[OK] Output file will be called %s." % outputFileName
-
-    outFile = "output.csv"
+    print "[OK] Output file will be called %s." % outFile
 
     try:
         fileH = open(outFile, 'wt')
@@ -93,7 +95,7 @@ def extract_data (bag, topic, inputFileName):
     for topic, msg, t in bag.read_messages(topics=topic):
         #pickle.dump(msg,outputFh)
         #headerRow = getHeader(msg)
-        columns = getColumns(t, msg)
+        columns = getColumns(msg)
     
         #write the columns or image to the file/folder.
         fileWriter.writerow(columns)

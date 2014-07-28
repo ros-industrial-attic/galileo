@@ -4,6 +4,7 @@
 #include <ros/ros.h>
 #include <ros/package.h>
 #include <tf/transform_broadcaster.h>
+#include <geometry_msgs/TransformStamped.h>
 #include <kdl/frames.hpp>
 
 #include <XnOpenNI.h>
@@ -15,8 +16,6 @@
 
 #include <pcl_conversions/pcl_conversions.h>
 #include <pcl_ros/point_cloud.h>
-//#include <sensor_msgs/PointCloud2.h>
-//#include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <pcl/kdtree/kdtree_flann.h>
 #include <pcl/PCLPointCloud2.h>
@@ -24,7 +23,6 @@
 #include <pcl/features/pfh.h>
 
 #include <tf/transform_datatypes.h>
-//#include <tf/LinearMath/Quaternion.h>
 
 #include <iostream>
 #include <vector>
@@ -54,6 +52,10 @@ typedef pcl::PointCloud<pcl::PointXYZ> PointCloud;
 PointCloud::Ptr cloud;
 
 string frame_id("openni_depth_frame");
+const float alpha = 0.5;
+double x_t = 0;
+double y_t = 0;
+double z_t = 0;
 
 void XN_CALLBACK_TYPE User_NewUser(xn::UserGenerator& generator, XnUserID nId, void* pCookie) {
 	ROS_INFO("New User %d", nId);
@@ -61,7 +63,7 @@ void XN_CALLBACK_TYPE User_NewUser(xn::UserGenerator& generator, XnUserID nId, v
 	if (g_bNeedPose)
 		g_UserGenerator.GetPoseDetectionCap().StartPoseDetection(g_strPose, nId);
 	else
-		g_UserGenerator.GetSkeletonCap().RequestCalibration(nId, TRUE);
+    g_UserGenerator.GetSkeletonCap().RequestCalibration(nId, TRUE);
 }
 
 void XN_CALLBACK_TYPE User_LostUser(xn::UserGenerator& generator, XnUserID nId, void* pCookie) {
@@ -158,9 +160,9 @@ class UserTracker
       g_UserGenerator.GetSkeletonCap().GetSkeletonJointPosition(user, joint, joint_position);
 
       pt = joint_position.position;
-      /*pt.X = pt.X/1000; 
+      pt.X = pt.X/1000; 
       pt.Y = pt.Y/1000;
-      pt.Z = pt.Z/1000;*/
+      pt.Z = pt.Z/1000;
 
       return pt;
     }
@@ -277,42 +279,13 @@ class UserTracker
             
     }
     
-    void printJoinState(galileo::SkeletonJoint &skeletonJoint)
-    {
-      //ROS_DEBUG("angles: %.4f, %.4f, %.4f", skeletonJoint.roll, skeletonJoint.pitch, skeletonJoint.yaw);
-      printf("orientation:(%f, %f, %f)  pos:( %f, %f, %f) \n roll pitch yaw(%f ,%f) rotation(%f, %f ,%f, %f) \n  ",
-       skeletonJoint.orientation.x, skeletonJoint.orientation.y, skeletonJoint.orientation.z,
-       skeletonJoint.position.x, skeletonJoint.position.y, skeletonJoint.position.z,
-       skeletonJoint.pitch, skeletonJoint.yaw,
-       skeletonJoint.transform.rotation.x, skeletonJoint.transform.rotation.y,
-       skeletonJoint.transform.rotation.z, skeletonJoint.transform.rotation.w);
-    } 
-     /*   
-    float getPitch(tf::Quaternion &q)
-    {
-      return atan2(2*(q.y*q.z + q.w*q.x), q.w*q.w - q.x*q.x - q.y*q.y + q.z*q.z);
-    }
- 
-    float getYaw(tf::Quaternion q)
-    {
-      return asin(-2*(x*z - w*y));
-    }
-    //var yaw = atan2(2.0*(q.y*q.z + q.w*q.x), q.w*q.w - q.x*q.x - q.y*q.y + q.z*q.z);
-    //var pitch = asin(-2.0*(q.x*q.z - q.w*q.y));
-    //var roll = atan2(2.0*(q.x*q.y + q.w*q.z), q.w*q.w + q.x*q.x - q.y*q.y - q.z*q.z)s
-    
-    float getRoll(tf::Quaternion q)
-    {
-      return atan2(2*(x*y + w*z), w*w + x*x - y*y - z*z);
-    }*/
-    
     int getClass(float xpitch, float xyaw)  
     {
        int label = 0;
        for(float yaw=min_yaw; yaw <= max_yaw; yaw = yaw + resolution)
        {
         for(float pitch=min_pitch; pitch <= max_pitch; pitch = pitch + resolution)
-        { //cout<<"["<<pitch<<" , "<<yaw<<"]"<<endl;
+        { //cout<<"[pitch="<<pitch<<" , yaw="<<yaw<<"]"<< " ( " << xpitch <<","<< xyaw<<")"<<endl;
           if(pitch==xpitch && yaw==xyaw) 
             return label;
           else           
@@ -321,6 +294,11 @@ class UserTracker
         label++;
        }
       return -1;
+    }
+    
+    float getPitch(tf::Quaternion &q)
+    {
+      return atan2(2*(q.y()*q.z() + q.w()*q.x()), q.w()*q.w() - q.x()*q.x() - q.y()*q.y() + q.z()*q.z());
     }
 
     void publishTransform(XnUserID const& user, XnSkeletonJoint const& joint, 
@@ -331,54 +309,35 @@ class UserTracker
 
         XnSkeletonJointPosition joint_position;
         g_UserGenerator.GetSkeletonCap().GetSkeletonJointPosition(user, joint, joint_position);
-        /*
-        double x = -joint_position.position.X / 1000.0;
-        double y = joint_position.position.Y / 1000.0;
-        double z = joint_position.position.Z / 1000.0;
-        */
-        
-        double x = -joint_position.position.X;
-        double y = joint_position.position.Y;
-        double z = joint_position.position.Z;
-
+        double x = -joint_position.position.X/1000;
+        double y = joint_position.position.Y/1000;
+        double z = joint_position.position.Z/1000;
+     
         XnSkeletonJointOrientation joint_orientation;
         g_UserGenerator.GetSkeletonCap().GetSkeletonJointOrientation(user, joint, joint_orientation);
 
         XnFloat* m = joint_orientation.orientation.elements;
-        /*
-	      m[0] = -m[0];
-	      m[1] = -m[1];
-	      m[2] = -m[2];
-	      m[6] = -m[6];
-	      m[7] = -m[7];
-	      m[8] = -m[8];*/	
-
         KDL::Rotation rotation(m[0], m[1], m[2],
         					   m[3], m[4], m[5],
         					   m[6], m[7], m[8]);
-        printf("m[] %f %f %f %f %f %f %f %f %f\n",m[0], m[1], m[2],m[3], m[4], m[5],m[6], m[7], m[8]);
         //get the quaternion of this matrix
         double qx, qy, qz, qw;
         rotation.GetQuaternion(qx, qy, qz, qw);
-        
-        tf::Transform transform;
-        ros::Time t;
-        
-        t = ros::Time::now();
+        //printf("m[] %f %f %f %f %f %f %f %f %f\n",m[0], m[1], m[2],m[3], m[4], m[5],m[6], m[7], m[8]);
+        //printf("q[] %f %f %f %f\n",qx, qy, qz, qw) ;
 
+        tf::Transform transform;  
         transform.setOrigin(tf::Vector3(x, y, z));
         transform.setRotation(tf::Quaternion(qx, -qy, -qz, qw));
     
         tf::Transform change_frame;
         change_frame.setOrigin(tf::Vector3(0, 0, 0));
-
         tf::Quaternion frame_rotation;
         frame_rotation.setEulerZYX(HALFPI, 0, HALFPI);
-      
         change_frame.setRotation(frame_rotation);
 
         transform = change_frame * transform;
-    
+        
         geometry_msgs::Vector3 position;
 		    geometry_msgs::Quaternion orientation;
 
@@ -395,41 +354,58 @@ class UserTracker
 		    skeletonJoint.position = position;
 		    skeletonJoint.orientation = orientation;
 		    
-        skeletonJoint.transform.translation.x = transform.getOrigin().x();
-	      skeletonJoint.transform.translation.y = transform.getOrigin().y();
-  	    skeletonJoint.transform.translation.z = transform.getOrigin().z();
-
-	      skeletonJoint.transform.rotation.x = transform.getRotation().x();
-	      skeletonJoint.transform.rotation.y = transform.getRotation().y();
-	      skeletonJoint.transform.rotation.z = transform.getRotation().z();
-	      skeletonJoint.transform.rotation.w = transform.getRotation().w();
-      
-
-        double roll, pitch, yaw;
-        tf::Quaternion q_orig(qx, qy, qz, qw);
+  
+        double roll, pitch, yaw, XX, YY, ZZ;
+        tf::Quaternion q_orig(qx, qy, -qz, qw);
         tf::Quaternion q_fix(0.70710678, 0., 0., 0.70710678);
 
         tf::Quaternion q_rot =  q_fix * q_orig * q_fix.inverse();
-        //tf::Quaternion q_rot =  frame_rotation * q_orig * q_fix.inverse();
-
-        //tf::Quaternion q(q_rot.x(), q_rot.y(), q_rot.z(), q_rot.w());        
+        /*
         tf::Quaternion q(transform.getRotation().x(), transform.getRotation().y(), 
-                         transform.getRotation().z(), transform.getRotation().w());        
+                         transform.getRotation().z(), transform.getRotation().w());*/
 
+        geometry_msgs::TransformStamped t;
+        //tf::Quaternion q(qx, qy, qz, qw);        
+
+        t.transform.translation.x = x;
+        t.transform.translation.y = y;
+        t.transform.translation.z = z;
+        t.transform.rotation.x = q_rot.x();
+        t.transform.rotation.y = q_rot.y();
+        t.transform.rotation.z = q_rot.z();
+        t.transform.rotation.w = q_rot.w();
+
+        t.header.stamp = ros::Time::now();
+        t.header.frame_id = frame_id;
+        t.child_frame_id = child_frame_id;
+        
+        
+        tf::Quaternion q(q_rot.x(), q_rot.y(), -q_rot.z(), q_rot.w());
         tf::Matrix3x3(q).getRPY(roll, pitch, yaw);
  
-        //skeletonJoint.roll = roll;//tf::getRoll(transform.getRotation()); //m[8]!=0? atan(m[7]/m[8]):0;
-        skeletonJoint.pitch = pitch;//tf::getPitch(transform.getRotation()); //atan(-m[6]/sqrt(m[7]*m[7]+m[8]*m[8]));
-        skeletonJoint.yaw = yaw;//tf::getYaw(transform.getRotation());//m[0]!=0? atan(m[3]/m[0]) : 0;*/
+        XX  =  m[6];
+        YY =  m[7];
+        ZZ = m[8];
+
+        x_t  = XX*alpha + (x_t * (1 - alpha));
+        y_t  = YY*alpha + (y_t * (1 - alpha));
+        z_t  = ZZ*alpha + (z_t * (1 - alpha));
         
+        skeletonJoint.pitch = pitch * 180 / PI;
+        skeletonJoint.yaw = yaw * 180 / PI;
+        //skeletonJoint.pitch2 = (atan2(m[6],sqrt(m[7]*m[7]+m[8]*m[8]))*180.0)/PI;
+        //skeletonJoint.pitch2 = (atan2(x_t,sqrt(y_t*y_t + z_t*z_t))*180.0)/PI;
+        
+        //skeletonJoint.yaw2 = m[0]!=0? (atan2(m[3],m[0])*180)/PI : 0;
+
         //calculate velocities
         skeletonJoint.velocity.angular.z = 4.0 * atan2(transform.getOrigin().y(),
                                         transform.getOrigin().x());
         skeletonJoint.velocity.linear.x = 0.5 * sqrt(pow(transform.getOrigin().x(), 2) +
                                         pow(transform.getOrigin().y(), 2));
-
+                
         br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), frame_id, child_frame_id));
-        
+        //br.sendTransform(t);
         return;        
        
     }
@@ -447,14 +423,12 @@ class UserTracker
               continue;
     
       
-          //publishTransform(user, XN_SKEL_TORSO, frame_id, "torso", torsoJoint);
+          publishTransform(user, XN_SKEL_TORSO, frame_id, "torso", torsoJoint);
+          //publishTransform(user, XN_SKEL_LEFT_SHOULDER,  frame_id, "left_shoulder", rightHandJoint);
+          //publishTransform(user, XN_SKEL_RIGHT_ELBOW,     frame_id, "right_elbow", rightHandJoint);
           publishTransform(user, XN_SKEL_RIGHT_HAND, frame_id, "right_hand", rightHandJoint);
+        
 	        
-          //skeleton.userid = user;
-          //skls.skeletons.push_back(skeleton);
-          
-          //skeleton_pub.publish(skls);
-
       }
   }
 
@@ -535,12 +509,6 @@ class UserTracker
 
           // Compute the features
           ne.compute (*normals);
-          
-          /*for (size_t i = 0; i < normals->points.size(); ++i)
-            std::cerr << " " << normals->points[i].normal_x 
-                      << " " << normals->points[i].normal_y
-                      << " " << normals->points[i].normal_z << std::endl;
-          */
 
           features.rightHand = rightHandJoint;
           //features.torsoJoint = torsoJoint;
@@ -549,22 +517,19 @@ class UserTracker
           features.basePoint = basePoint;
 
           // we publish only if we get angles between param and calculate the class of features
-          int label = getClass(rightHandJoint.pitch, rightHandJoint.yaw);
+          int cls = getClass(rightHandJoint.pitch, rightHandJoint.yaw);
           /*if(label=!-1)
           {
             features.label = label;
             features_pub.publish(features);
           }*/
           
-          features.label = label;
+          features.cls = cls; //rand() % 400 + 1;
           features_pub.publish(features);
          
           
     } // endfor
-   
-    
-  }
-  
+  }  
 };
 
 #define CHECK_RC(nRetVal, what)										\
@@ -578,9 +543,9 @@ class UserTracker
 int main(int argc, char **argv) {
 
   ros::init(argc, argv, "galileo");
-
+  ros::NodeHandle nh;
   
-  string configFilename = ros::package::getPath("openni_tracker") + "/openni_tracker.xml";
+  string configFilename = ros::package::getPath("galileo") + "/galileo.xml";
   XnStatus nRetVal = g_Context.InitFromXmlFile(configFilename.c_str());
   CHECK_RC(nRetVal, "InitFromXml");
 
@@ -637,7 +602,7 @@ int main(int argc, char **argv) {
     ros::spinOnce();
 		r.sleep();
   }
-
-	g_Context.Shutdown();
+  
+  g_Context.Shutdown();
 	return 0;
 } 

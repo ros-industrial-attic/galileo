@@ -1,5 +1,5 @@
 Header header
-int32 label
+int32 cls
 SkeletonJoint rightHand
 geometry_msgs/Vector3 closestPoint
 geometry_msgs/Vector3 basePoint

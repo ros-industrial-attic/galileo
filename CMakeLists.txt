@@ -87,8 +87,6 @@ include_directories(${OPENNI_INCLUDEDIR} /usr/include/nite)
 add_executable(listener_transform_node src/listener_transform.cpp)
 target_link_libraries(listener_transform_node ${catkin_LIBRARIES} ${OPENNI_LIBRARIES})
 
-add_executable(convert_bagfile_node src/convert_bagfile.cpp)
-target_link_libraries(convert_bagfile_node ${catkin_LIBRARIES})
 
 include_directories(${OPENNI_INCLUDEDIR} /usr/include/nite)
 add_executable(extract_features_node src/extract_features_node.cpp)
@@ -103,10 +101,16 @@ add_executable(point_cloud_node src/point_cloud_node.cpp)
 target_link_libraries(point_cloud_node  
   ${catkin_LIBRARIES}
   ${PCL_LIBRARIES}
-#  ${OpenCV_LIBS}
 )
 
-install(TARGETS extract_features_node 
+add_executable(train_data_node src/train_data_node.cpp)
+target_link_libraries(train_data_node  
+  ${catkin_LIBRARIES}
+  ${OpenCV_LIBS}
+)
+
+
+install(TARGETS extract_features_node train_data_node 
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
