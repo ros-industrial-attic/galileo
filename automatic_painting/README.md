@@ -1,8 +1,41 @@
-galileo
-=======
+##1. Steps to run the code
+Please clone the git repository into a workspace with catkin
+```
+$ git clone git@github.com:ros-industrial-consortium/galileo.git
+```
+```
+$ catking_make install 
+```
+```
+$ source devel/setup.bash
+```
+In another console:
+```
+$ roslaunch openni_launch openni.launch
+```
+##2. Generation of data with preconfigured launch file
 
-Google Summer of Code Project: Intuitive Tele-op For Industrial Painting
+Run the preconfigured launch file
+```
+$ roslaunch automatic_painting demo.launch
+```
+Once running stand of front of Kinect or Asus sensor and surrender Psi pose to generate the trainning data
 
-[Galileo Galilei](http://en.wikipedia.org/wiki/Galileo_Galilei): _Galileo Galilei (Italian pronunciation: [ɡaliˈlɛːo ɡaliˈlɛi]; 15 February 1564 – 8 January 1642), often known mononymously as Galileo, was an Italian physicist, mathematician, engineer, astronomer, and philosopher who played a major role in the scientific revolution. His achievements include improvements to the telescope and consequent astronomical observations and support for Copernicanism. Galileo has been called the "father of modern observational astronomy", the "father of modern physics", the "father of science", and "the Father of Modern Science"._
+##3. Saving bag files
 
+Open other console doing:
+```
+$ rosbag record -o features /features
+```
+##3.1 Trainning Random Forest algorithm 
+
+First convert the bag to csv file
+```
+$ python read_bagfile.py features.bag
+```
+Type a topic number to extract the data, this script will generate a file called output-features.csv. Now, trainning the forest   
+
+```
+$ ../../../install/lib/galileo/train_data_node -data output-features.csv
+```
 
