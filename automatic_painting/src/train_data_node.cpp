@@ -1,6 +1,7 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/ml/ml.hpp>
 #include <stdio.h>
+#include <unistd.h>
 
 #define NUMBER_OF_TRAINING_DATA 124
 #define NUMBER_ATTRIBUTES 20
@@ -29,7 +30,6 @@ int read_data_from_csv(const char* filename, Mat *data, Mat *classes,
             {
                 fscanf(f, "%f,", &tmp);
                 classes->at<float>(line, 0) = tmp; //we save class label
-             
             }
             else    
             {
@@ -47,18 +47,18 @@ int read_data_from_csv(const char* filename, Mat *data, Mat *classes,
 }
 
 static
-int build_rtrees_classifier( char* data_filename,
+int build_rtrees_classifier(int num_samples, char* data_filename,
     char* filename_to_save, char* filename_to_load )
 {
-    Mat training_data = Mat(NUMBER_OF_TRAINING_DATA, NUMBER_ATTRIBUTES, CV_32FC1);
-    Mat training_classifications = Mat(NUMBER_OF_TRAINING_DATA, 1, CV_32FC1);
+    Mat training_data = Mat(num_samples, NUMBER_ATTRIBUTES, CV_32FC1);
+    Mat training_classifications = Mat(num_samples, 1, CV_32FC1);
     Mat var_type;
     Mat sample_idx;
 
     CvRTrees forest;
     int nsamples_all = 0, ntrain_samples = 0;
 
-    int ok = read_data_from_csv(data_filename, &training_data, &training_classifications, NUMBER_OF_TRAINING_DATA);
+    int ok = read_data_from_csv(data_filename, &training_data, &training_classifications, num_samples);
 
     if(!ok)
     {
@@ -157,7 +157,6 @@ int build_rtrees_classifier( char* data_filename,
             }
             else
                 correct_class++;
-            
         }
 
     }
@@ -175,12 +174,17 @@ int main( int argc, char** argv )
     char default_data_filename[] = "./output-features.csv";
     char* data_filename = default_data_filename;
     int method = 0;
-
+    int num_samples = 0;
     int i;
     
     for( i = 1; i < argc; i++ )
     {
-        if( strcmp(argv[i],"-data") == 0 ) // flag "-data filename.csv"
+        if( strcmp(argv[i],"-num") == 0 ) // flag "-data filename.csv"
+        {
+            i++;
+            num_samples = atoi(argv[i]);
+        }
+        else if( strcmp(argv[i],"-data") == 0 ) // flag "-data filename.csv"
         {
             i++;
             data_filename = argv[i];
@@ -203,7 +207,7 @@ int main( int argc, char** argv )
     if (i < 1)
         printf("Please provide .csv file \n");
     else
-        build_rtrees_classifier(data_filename, filename_to_save, filename_to_load);
+        build_rtrees_classifier(num_samples, data_filename, filename_to_save, filename_to_load);
 
 
     return 0;   

@@ -31,11 +31,11 @@ $ rosbag record -o features /features
 
 First convert the bag to csv file with next script
 ```
-$ python read_bagfile.py features.bag
+$ python read_bagfile.py features_date.bag
 ```
-Type a topic number to extract the data, this script will generate a file called output-features.csv. Now, train the algorithm with the data of .csv file as input to program:    
+Type the topic number of "features" to extract the data, then this script will generate a file called output-features.csv with the numbers of samples in rows. Now, train the algorithm with the data of .csv file as input:    
 
 ```
-$ ../../../install/lib/automatic_painting/train_data_node -data output-features.csv
+$ ../../../install/lib/automatic_painting/train_data_node -num number_of_samples -data output-features.csv -save trained_data.xml
 ```
 

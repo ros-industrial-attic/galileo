@@ -90,7 +90,7 @@ def extract_data (bag, topic, inputFileName):
     except:
         rospy.logerr("Error opening specified output file : %s"%outFile)
         sys.exit(2)
-
+    i = 0
     #with rosbag.Bag(outputFileName, 'w', chunk_threshold=100 * 1024 * 1024) as outbag:
     for topic, msg, t in bag.read_messages(topics=topic):
         #pickle.dump(msg,outputFh)
@@ -99,9 +99,9 @@ def extract_data (bag, topic, inputFileName):
     
         #write the columns or image to the file/folder.
         fileWriter.writerow(columns)
-		      
+        i = i + 1     
       #outputFh.close()
-    print "[OK] Writing DONE"
+    print "[OK] Writing DONE (%s rows)" % str(i)
 
 def menu (topicList):
     i = 0
