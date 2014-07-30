@@ -4,6 +4,10 @@
 	</node>
 
   <node name="point_cloud_node" pkg="automatic_painting" type="point_cloud_node" output="screen" respawn="true">
-    <remap from="input" to="/camera/depth/points" />
+   <!-- <remap from="input" to="/camera/depth/points" /> -->
   </node>
+
+  <node pkg="rosbag" type="record" name="features" args="record /features -o $(find automatic_painting)/bags/features" output="screen"/>
+
+  <node pkg="rostopic" type="rostopic" name="rostopic_echo_features" args="echo /features" output="screen" />
 </launch>
