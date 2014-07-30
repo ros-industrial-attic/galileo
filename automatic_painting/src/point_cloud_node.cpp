@@ -90,11 +90,11 @@ class CloudPoints
       extract_.setIndices (inliers);
       extract_.filter (*temp_cloud1);
 
-      extract_.setNegative(true);
-      extract_.filter(*temp_cloud2);
-      cloud_filtered.swap(temp_cloud2);
+      //extract_.setNegative(true);
+      //extract_.filter(*temp_cloud2);
+      //cloud_filtered.swap(temp_cloud2);
 
-      return (temp_cloud2);
+      return (temp_cloud1);
     }
 
     void
@@ -149,23 +149,3 @@ int main (int argc, char** argv)
   } 
  
 }
-
-/*
-
-
-void 
-cloud_cb (const pcl::PCLPointCloud2ConstPtr& input)
-{
-  // data points processing
-  pcl::PCLPointCloud2 cloud_filtered;
-  pcl::VoxelGrid<pcl::PCLPointCloud2> sor;
- 
-  sor.setInputCloud (input);
-  sor.setLeafSize (0.01, 0.01, 0.01);
-  sor.filter (cloud_filtered);
-  
-  // Publish the data
-  pub.publish (cloud_filtered);
-}
-
-*/

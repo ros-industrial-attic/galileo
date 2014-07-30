@@ -9,33 +9,29 @@ $ catking_make install
 ```
 $ source devel/setup.bash
 ```
-In another console run openni to generate Point Cloud information:
-```
-$ roslaunch openni_launch openni.launch
-``` 
 ##2. Generation of data with preconfigured launch file
 
-Run the preconfigured launch file
+Run the preconfigured launch file and please position your kinect/asus sensor in front of a planar surface for segmentation.
+
 ```
 $ roslaunch automatic_painting demo.launch
 ```
-Once running stand of front of Kinect or Asus sensor and surrender Psi pose to generate the trainning data and move the left hand from left to right upper a planar surface. 
+
+Once running stand of front of Kinect or Asus sensor and surrender Psi pose to generate the training data and move the left hand from left to right on a planar surface to generate the pitch and yaw angles
 
 ##3. Saving bag files
 
-Open another console and save a bag file:
-```
-$ rosbag record -o features /features
-```
+Don't worried, the launch file will record the bag file under `bags` directory
+
 ##3.1 Trainning Random Forest algorithm 
 
-First convert the bag to csv file with next script
+First all, convert the bag to csv file with next script:
 ```
-$ python read_bagfile.py features_date.bag
+$ python read_bagfile.py bags/features_date.bag
 ```
 Type the topic number of "features" to extract the data, then this script will generate a file called output-features.csv with the numbers of samples in rows. Now, train the algorithm with the data of .csv file as input:    
 
 ```
-$ ../../../install/lib/automatic_painting/train_data_node -num number_of_samples -data output-features.csv -save trained_data.xml
+$ train_data_node -num number_of_samples -data output-features.csv -save trained_data.xml
 ```
 

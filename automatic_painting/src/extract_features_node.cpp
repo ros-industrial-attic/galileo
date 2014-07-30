@@ -426,7 +426,7 @@ class UserTracker
           publishTransform(user, XN_SKEL_TORSO, frame_id, "torso", torsoJoint);
           //publishTransform(user, XN_SKEL_LEFT_SHOULDER,  frame_id, "left_shoulder", rightHandJoint);
           //publishTransform(user, XN_SKEL_RIGHT_ELBOW,     frame_id, "right_elbow", rightHandJoint);
-          publishTransform(user, XN_SKEL_LEFT_ELBOW, frame_id, "left_elbow", rightHandJoint);
+          publishTransform(user, XN_SKEL_LEFT_HAND, frame_id, "left_hand", rightHandJoint);
         
 	        
       }
