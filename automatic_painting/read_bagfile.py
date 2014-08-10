@@ -67,11 +67,13 @@ def getColumns(msg):
 
     if (msgType == '_automatic_painting__Features'):
         # 21 cols
-        columns = [msg.cls, msg.rightHand.position.x, msg.rightHand.position.y, msg.rightHand.position.z, \
-        msg.rightHand.orientation.x, msg.rightHand.orientation.y, msg.rightHand.orientation.z, \
-        msg.rightHand.orientation.w, msg.rightHand.pitch, msg.rightHand.yaw, msg.closestPoint.x, msg.closestPoint.y, \
-        msg.closestPoint.z, msg.basePoint.x, msg.basePoint.y, msg.basePoint.z, \
-        msg.distances[0], msg.distances[1], msg.distances[2], msg.distances[3], msg.distances[4]]
+        columns = [msg.cls, round(msg.rightHand.position.x, 5), round(msg.rightHand.position.y, 5), \
+        round(msg.rightHand.position.z, 5), round(msg.rightHand.orientation.x, 5), round(msg.rightHand.orientation.y, 5), \
+        round(msg.rightHand.orientation.z, 5), round(msg.rightHand.orientation.w, 5), round(msg.rightHand.pitch, 5), \
+        round(msg.rightHand.yaw, 5), round(msg.closestPoint.x, 5), round(msg.closestPoint.y, 5), \
+        round(msg.closestPoint.z, 5), round(msg.basePoint.x, 5), round(msg.basePoint.y, 5), round(msg.basePoint.z, 5), \
+        round(msg.distances[0], 5), round(msg.distances[1], 5), round(msg.distances[2], 5), round(msg.distances[3], 5), \
+        round(msg.distances[4], 5)]
     else:
         rospy.logerror("Unexpected error - AGH!")
         sys.exit(2)

@@ -1,13 +1,21 @@
 <launch>
-	<node name="extract_features_node" pkg="automatic_painting" type="extract_features_node"  output="screen" respawn="true">
-		<remap from="points" to="/surface" />
+	<!-- enabled_classifier can be true for training the random algorith or false 
+   		for testing data trainned -->
+  	<param name="enabled_classifier" value="true" />
+
+  	<node name="extract_features_node" pkg="automatic_painting" type="extract_features_node" 
+       output="screen" respawn="true">
+	  <remap from="points" to="/surface" />
 	</node>
 
-  <node name="point_cloud_node" pkg="automatic_painting" type="point_cloud_node" output="screen" respawn="true">
-   <!-- <remap from="input" to="/camera/depth/points" /> -->
-  </node>
+	<node name="point_cloud_node" pkg="automatic_painting" type="point_cloud_node" output="screen" respawn="true">
+		<!-- <remap from="input" to="/camera/depth/points" /> -->
+	</node>
 
-  <node pkg="rosbag" type="record" name="features" args="record /features -o $(find automatic_painting)/bags/features" output="screen"/>
+	<node pkg="rosbag" type="record" name="features" args="record /features -o $(find automatic_painting)/bags/features" output="screen" />
 
-  <node pkg="rostopic" type="rostopic" name="rostopic_echo_features" args="echo /features" output="screen" />
+	<!--<node pkg="rostopic" type="rostopic" name="rostopic_echo_features" args="echo /features" output="screen" /> -->
+	<node name="classifier_features_node" pkg="automatic_painting" type="classifier_features_node" output="screen">
+		<param name="load_file" value="letter-recognition.xml" />
+	</node> 
 </launch>

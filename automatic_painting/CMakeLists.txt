@@ -32,7 +32,7 @@ include_directories(
   ${Nite_INCLUDE_DIR}
   ${orocos_kdl_INCLUDE_DIRS}
   ${PCL_INCLUDE_DIRS}
-#  ${OpenCV_INCLUDE_DIRS}
+  ${OpenCV_INCLUDE_DIRS}
 )
 
 link_directories(
@@ -40,7 +40,7 @@ link_directories(
   ${orocos_kdl_LIBRARY_DIRS}
   ${OpenNi_LIBRARIES}
   ${PCL_LIBRARY_DIRS}
-#  ${OpenCV_LIBRARIES}
+  ${OpenCV_LIBRARIES}
 )
 
 add_definitions(${PCL_DEFINITIONS})
@@ -95,17 +95,30 @@ target_link_libraries(point_cloud_node
   ${PCL_LIBRARIES}
 )
 
+#add_executable(point_cloud_node2 src/point_cloud_node2.cpp)
+#target_link_libraries(point_cloud_node2  
+#  ${catkin_LIBRARIES}
+#  ${PCL_LIBRARIES}
+#)
+
 add_executable(train_data_node src/train_data_node.cpp)
 target_link_libraries(train_data_node  
   ${catkin_LIBRARIES}
   ${OpenCV_LIBS}
 )
 
-install(TARGETS extract_features_node
+add_executable(classifier_features_node src/classifier_features_node.cpp)
+target_link_libraries(classifier_features_node  
+  ${catkin_LIBRARIES}
+  ${OpenCV_LIBS}
+)
+
+
+install(TARGETS extract_features_node point_cloud_node classifier_features_node
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-)
+)  
 
 
 install(TARGETS train_data_node 

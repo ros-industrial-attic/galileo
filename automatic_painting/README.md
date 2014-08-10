@@ -13,8 +13,14 @@ $ source devel/setup.bash
 
 Run the preconfigured launch file and please position your kinect/asus sensor in front of a planar surface for segmentation.
 
+
 ```
+$ roscd automatic_painting
 $ roslaunch automatic_painting demo.launch
+```
+If roscd fails, remember to set the ROS_PACKAGE_PATH variable in your terminal.
+```
+$ export ROS_PACKAGE_PATH=$~/path_to_workspace:$ROS_PACKAGE_PATH
 ```
 
 Once running stand of front of Kinect or Asus sensor and surrender Psi pose to generate the training data and move the left hand from left to right on a planar surface to generate the pitch and yaw angles
@@ -34,4 +40,4 @@ Type the topic number of "features" to extract the data, then this script will g
 ```
 $ train_data_node -num number_of_samples -data output-features.csv -save trained_data.xml
 ```
-
+Make sure of the `number_of_samples` has a number of output of python file

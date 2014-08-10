@@ -393,10 +393,6 @@ class UserTracker
       
       skeletonJoint.pitch = pitch * 180 / PI;
       skeletonJoint.yaw = yaw * 180 / PI;
-      //skeletonJoint.pitch2 = (atan2(m[6],sqrt(m[7]*m[7]+m[8]*m[8]))*180.0)/PI;
-      //skeletonJoint.pitch2 = (atan2(x_t,sqrt(y_t*y_t + z_t*z_t))*180.0)/PI;
-      
-      //skeletonJoint.yaw2 = m[0]!=0? (atan2(m[3],m[0])*180)/PI : 0;
 
       //calculate velocities
       skeletonJoint.velocity.angular.z = 4.0 * atan2(transform.getOrigin().y(),
@@ -423,10 +419,10 @@ class UserTracker
               continue;
     
       
-          publishTransform(user, XN_SKEL_TORSO, frame_id, "torso", torsoJoint);
+          //publishTransform(user, XN_SKEL_TORSO, frame_id, "torso", torsoJoint);
           //publishTransform(user, XN_SKEL_LEFT_SHOULDER,  frame_id, "left_shoulder", rightHandJoint);
           //publishTransform(user, XN_SKEL_RIGHT_ELBOW,     frame_id, "right_elbow", rightHandJoint);
-          publishTransform(user, XN_SKEL_LEFT_HAND, frame_id, "left_hand", rightHandJoint);
+          publishTransform(user, XN_SKEL_LEFT_ELBOW, frame_id, "left_hand", rightHandJoint);
         
 	        
       }
@@ -458,7 +454,7 @@ class UserTracker
       //pcl::fromROSMsg(*msg, cloud);
       kdtree.setInputCloud (cloud); // wait const PointCloudConstPtr &cloud or const PointCloudConstPtr &cloud
 
-      XnPoint3D hand = getBodyLocalization(user, XN_SKEL_LEFT_HAND);
+      XnPoint3D hand = getBodyLocalization(user, XN_SKEL_LEFT_ELBOW);
       XnPoint3D torso = getBodyLocalization(user, XN_SKEL_TORSO);
 
       pcl::PointXYZ searchPoint; // this is joint position
@@ -487,12 +483,7 @@ class UserTracker
       if ( kdtree.nearestKSearch (searchPoint, K, pointIdxNKNSearch, pointNKNSquaredDistance) > 0 )
       {
         for (size_t i = 0; i < pointIdxNKNSearch.size (); ++i)
-        {  /*cout << " " << cloud->points[ pointIdxNKNSearch[i] ].x 
-               << " " << cloud->points[ pointIdxNKNSearch[i] ].y 
-               << " " << cloud->points[ pointIdxNKNSearch[i] ].z 
-               << " (squared distance: " << pointNKNSquaredDistance[i] << ")" << std::endl;*/
-           features.distances.push_back(pointNKNSquaredDistance[i]); 
-        }
+          features.distances.push_back(pointNKNSquaredDistance[i]); 
       }
 
             
@@ -606,6 +597,6 @@ int main(int argc, char **argv) {
 		r.sleep();
   }
   
-  g_Context.Shutdown();
+  g_Context.Release();
 	return 0;
 } 

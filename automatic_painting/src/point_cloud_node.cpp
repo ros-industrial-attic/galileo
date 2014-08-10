@@ -39,6 +39,8 @@ class CloudPoints
       : viewer ("Planar Segmentation Viewer")
     {
       pub = nh.advertise<sensor_msgs::PointCloud2> ("surface", 1);
+      //pub = nh.advertise<pcl::PCLPointCloud2> ("surface", 1);
+      //ros::Subscriber sub = nh.subscribe("input", 1, cloud_cb_);
 
       grid_.setFilterFieldName ("z");
       grid_.setFilterLimits (0.0f, 3.0f);
@@ -57,6 +59,7 @@ class CloudPoints
     cloud_cb_ (const CloudConstPtr& cloud)
     {
       set (cloud);
+      //pub.publish(cloud);
     }
 
     void
@@ -113,9 +116,11 @@ class CloudPoints
         {
           //the call to get() sets the cloud_ to null;
           CloudPtr c = get();
-          viewer.showCloud (c);
+          viewer.showCloud (c); 
           sensor_msgs::PointCloud2 msg;
-          pcl::toROSMsg(*c,msg);
+          //pcl::PCLPointCloud2 msg = *c;
+          msg.header.frame_id =  "sensor_frame";
+          pcl::toROSMsg(*c, msg);
           pub.publish (msg);
         }
         ros::spinOnce();

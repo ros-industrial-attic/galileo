@@ -1,3 +1,4 @@
+
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/ml/ml.hpp>
 #include <stdio.h>
@@ -179,7 +180,7 @@ int main( int argc, char** argv )
     
     for( i = 1; i < argc; i++ )
     {
-        if( strcmp(argv[i],"-num") == 0 ) // flag "-data filename.csv"
+        if( strcmp(argv[i],"-num") == 0 ) // flag "-num number_of_rows"
         {
             i++;
             num_samples = atoi(argv[i]);
