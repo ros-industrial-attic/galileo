@@ -1,3 +1,5 @@
+// author: Steve Ataucuri Cruz
+
 #include <ros/ros.h>
 
 // PCL specific includes
@@ -39,8 +41,6 @@ class CloudPoints
       : viewer ("Planar Segmentation Viewer")
     {
       pub = nh.advertise<sensor_msgs::PointCloud2> ("surface", 1);
-      //pub = nh.advertise<pcl::PCLPointCloud2> ("surface", 1);
-      //ros::Subscriber sub = nh.subscribe("input", 1, cloud_cb_);
 
       grid_.setFilterFieldName ("z");
       grid_.setFilterLimits (0.0f, 3.0f);
@@ -59,7 +59,6 @@ class CloudPoints
     cloud_cb_ (const CloudConstPtr& cloud)
     {
       set (cloud);
-      //pub.publish(cloud);
     }
 
     void
@@ -92,10 +91,6 @@ class CloudPoints
       extract_.setInputCloud (cloud_filtered);
       extract_.setIndices (inliers);
       extract_.filter (*temp_cloud1);
-
-      //extract_.setNegative(true);
-      //extract_.filter(*temp_cloud2);
-      //cloud_filtered.swap(temp_cloud2);
 
       return (temp_cloud1);
     }
@@ -137,7 +132,6 @@ int main (int argc, char** argv)
   // Initialize ROS
   ros::init (argc, argv, "cloud_points");
   
-  //ros::Subscriber sub = nh.subscribe("input", 1, cloud_cb);
   double threshold = 0.01;
 
   pcl::OpenNIGrabber grabber;

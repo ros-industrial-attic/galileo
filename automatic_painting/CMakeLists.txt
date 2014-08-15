@@ -113,19 +113,20 @@ target_link_libraries(classifier_features_node
   ${OpenCV_LIBS}
 )
 
-
-install(TARGETS extract_features_node point_cloud_node classifier_features_node
+install(TARGETS 
+    extract_features_node 
+    point_cloud_node 
+    classifier_features_node
+    train_data_node
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )  
 
-
-install(TARGETS train_data_node 
-  LIBRARY DESTINATION ${CMAKE_BINARY_DIR}
-  RUNTIME DESTINATION ${CMAKE_CURRENT_SOURCE_DIR}
-)
-
+#install(TARGETS train_data_node 
+#  LIBRARY DESTINATION ${CMAKE_BINARY_DIR}
+#  RUNTIME DESTINATION ${CMAKE_CURRENT_SOURCE_DIR}
+#)
 
 ## Mark cpp header files for installation
 install(DIRECTORY include/${PROJECT_NAME}/

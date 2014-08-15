@@ -1,0 +1,6 @@
+<launch>
+	<node name="classifier_features_node" pkg="automatic_painting" type="classifier_features_node" output="screen">
+		<param name="load_file" value="data.xml" />
+ 	</node> 
+	
+</launch>

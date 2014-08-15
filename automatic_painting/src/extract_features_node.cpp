@@ -1,5 +1,6 @@
 // this code is based on 
 // openni_tracker.cpp 
+// author: Steve Ataucuri Cruz
 
 #include <ros/ros.h>
 #include <ros/package.h>
@@ -76,7 +77,9 @@ void XN_CALLBACK_TYPE UserCalibration_CalibrationStart(xn::SkeletonCapability& c
 
 void XN_CALLBACK_TYPE UserCalibration_CalibrationEnd(xn::SkeletonCapability& capability, XnUserID nId, XnBool bSuccess, void* pCookie) {
 	if (bSuccess) {
-		ROS_INFO("Calibration complete, start tracking user %d", nId);
+		ROS_INFO("Calibration complete for user %d", nId);
+    ROS_INFO("Start painting a surface for training ...");
+    
 		g_UserGenerator.GetSkeletonCap().StartTracking(nId);
 	}
 	else {
@@ -120,25 +123,20 @@ class UserTracker
   
   public:
 
-    UserTracker()
+    UserTracker(float minpitch, float minyaw, float maxpicth, float maxyaw, float res)
     {
       K = 5;
 
-      min_yaw = -15.0;
-      max_yaw = 15.0;
-      min_pitch = -10.0;
-      max_pitch = 10.0;
-      resolution = 1.0;
+      min_yaw = minyaw;
+      max_yaw = maxyaw;
+      min_pitch = minpitch;
+      max_pitch = maxpicth;
+      resolution = res;
       
       sub = nh.subscribe<PointCloud>("surface", 1, &UserTracker::extractFeatures, this);
-      //sub = nh.subscribe<sensor_msgs::PointCloud2>("surface", 1, &UserTracker::extractFeatures, this);
 
       features_pub = nh.advertise<automatic_painting::Features>("features", 1);
 
-    }
-  
-    float getMagnitude(KDL::Vector v){
-      return dot(v,v);
     }
 
     // this function return the localization of a specific joint
@@ -167,140 +165,36 @@ class UserTracker
       return pt;
     }
 
-    // We calculate join angle between three joins
-    float getLimbAngle(XnUserID const& user, 
-      XnSkeletonJoint const& joint1, 
-      XnSkeletonJoint const& joint2,
-      XnSkeletonJoint const& joint3)
-    {
-      if (!g_UserGenerator.GetSkeletonCap().IsTracking(user))
-      {
-          printf("User not tracked!\n");
-          return -998.0; 
-      }
-
-      XnSkeletonJointPosition joint_position1, joint_position2, joint_position3;
-      
-      g_UserGenerator.GetSkeletonCap().GetSkeletonJointPosition(user, joint1, joint_position1);
-      g_UserGenerator.GetSkeletonCap().GetSkeletonJointPosition(user, joint2, joint_position2);
-      g_UserGenerator.GetSkeletonCap().GetSkeletonJointPosition(user, joint3, joint_position3);
-
-      if (joint_position1.fConfidence >= 0.9 &&
-          joint_position2.fConfidence >= 0.9)
-      {
-        // We get position 
-        KDL::Vector s(joint_position1.position.X,
-                      joint_position1.position.Y,
-                      joint_position1.position.Z);
-            
-        KDL::Vector e(joint_position2.position.X,
-                      joint_position2.position.Y,
-                      joint_position2.position.Z);
-          
-        KDL::Vector h(joint_position3.position.X,
-                      joint_position3.position.Y,
-                      joint_position3.position.Z);
-      
-        // We calculate two vectors
-        // S: Shoulder, E: Elbow, H: Hand
-        // S  *
-        //    |
-        // E  *---*
-        //        H
-      
-        KDL::Vector v1, v2;
-        // EH = H-E
-        v1 = h-e;
-        v2 = s-e;
-
-        // Calculate the magnitudes of the vectors
-        float v1_magnitude = sqrt(getMagnitude(v1));
-        float v2_magnitude = sqrt(getMagnitude(v2));
-
-
-        if (v1_magnitude != 0.0 && v2_magnitude != 0.0)
-        {
-          // calculate join angle between limps
-          float theta = acos((dot(v1,v2))/(v1_magnitude*v2_magnitude));
-          return theta * 180 / PI;
-        }
-        else
-          return -999.0;
-      }
-      else
-        return -997.0;
-    } 
-
-    // We don't need all limps, just need some important angles of limps
-    void checkUserPose(XnUserID const& userid)
-    {  
-      if (!g_UserGenerator.GetSkeletonCap().IsTracking(userid))
-            return;
-      
-      // Right elbow angle
-      float right_elbow_angle = getLimbAngle(userid, XN_SKEL_RIGHT_SHOULDER, XN_SKEL_RIGHT_ELBOW,
-        XN_SKEL_RIGHT_HAND) * PI / 180.0;
-      printf("Right elbow angle %f\n", right_elbow_angle);
-
-      // Left elbow angle
-      float left_elbow_angle = getLimbAngle(userid, XN_SKEL_LEFT_SHOULDER, 
-        XN_SKEL_LEFT_ELBOW, XN_SKEL_LEFT_HAND) * PI / 180.0;
-      printf("Left elbow angle: %f\n", left_elbow_angle);
-
-      // right shoulder angle
-      float right_shoulder_angle = getLimbAngle(userid, XN_SKEL_RIGHT_HIP, 
-        XN_SKEL_RIGHT_SHOULDER, XN_SKEL_RIGHT_ELBOW) * PI / 180.0;
-      printf("Right Shoulder angle %f\n", right_shoulder_angle);
-
-      // Left shoulder angle
-      float left_shoulder_angle = getLimbAngle(userid, XN_SKEL_LEFT_HIP, 
-        XN_SKEL_LEFT_SHOULDER, XN_SKEL_LEFT_ELBOW) * PI / 180.0;
-      printf("Left Shoulder angle %f\n", left_shoulder_angle);
-
-    }
-
-    float getDistance(XnPoint3D point1, XnPoint3D point2)
-    {
-      return  sqrt(pow((point2.X - point1.X),2) + 
-          pow((point2.Y - point1.Y),2) + 
-          pow((point2.Z - point1.Z),2));
-    }
-
-    void checkHandPose(XnUserID const & user)
-    {
-      if (!g_UserGenerator.GetSkeletonCap().IsTracking(user))
-      {
-        printf("User not tracked!\n");
-        return;
-      }
-
-      XnPoint3D point1  = getBodyLocalization(user, XN_SKEL_RIGHT_HAND);
-      XnPoint3D point2  = getBodyLocalization(user, XN_SKEL_TORSO);
-            
-    }
-    
+    /* this function set the class to a feature vector according range values of 
+       start.launch file       
+    */
     int getClass(float xpitch, float xyaw)  
     {
-      int label = 0;
-      for(float yaw=min_yaw; yaw <= max_yaw; yaw = yaw + resolution)
+      // resolution = 1.0;
+      // variables:
+      //    yaw -> [-15, 15]
+      //    pitch -> [-10, 10]  
+      
+      int cls = 0;
+      for(float yaw=min_yaw; yaw < max_yaw; yaw = yaw + resolution) // range value for yaw variable
       {
-        for(float pitch=min_pitch; pitch <= max_pitch; pitch = pitch + resolution)
-        { //cout<<"[pitch="<<pitch<<" , yaw="<<yaw<<"]"<< " ( " << xpitch <<","<< xyaw<<")"<<endl;
-          if(pitch==xpitch && yaw==xyaw) 
-            return label;
-          else           
-            label++;         
-        }
-        label++;
+        //for(float pitch=min_pitch; pitch <= max_pitch; pitch = pitch + resolution) 
+        //{ 
+                
+          if(yaw <= xyaw && xyaw <= yaw+resolution )// &&  pitch variable 
+          //   (pitch <= xpitch && xpitch <= pitch+resolution)) // yaw variable                                   
+          {
+            cout << " Class "<<cls<< " yaw value ->"<< xyaw <<"  range ["<<yaw<<" - "<< yaw+resolution<<"] "<<endl; 
+            return cls;
+          }
+               
+          cls++;         
+        //}
+        //cls++;
       }
-      return -1;
+      return -1; // there is no class
     }
-    
-    float getPitch(tf::Quaternion &q)
-    {
-      return atan2(2*(q.y()*q.z() + q.w()*q.x()), q.w()*q.w() - q.x()*q.x() - q.y()*q.y() + q.z()*q.z());
-    }
-
+  
     void publishTransform(XnUserID const& user, XnSkeletonJoint const& joint, 
                           string const& frame_id, string const& child_frame_id,
                           automatic_painting::SkeletonJoint &skeletonJoint)
@@ -323,9 +217,7 @@ class UserTracker
       //get the quaternion of this matrix
       double qx, qy, qz, qw;
       rotation.GetQuaternion(qx, qy, qz, qw);
-      //printf("m[] %f %f %f %f %f %f %f %f %f\n",m[0], m[1], m[2],m[3], m[4], m[5],m[6], m[7], m[8]);
-      //printf("q[] %f %f %f %f\n",qx, qy, qz, qw) ;
-
+      
       tf::Transform transform;  
       transform.setOrigin(tf::Vector3(x, y, z));
       transform.setRotation(tf::Quaternion(qx, -qy, -qz, qw));
@@ -355,18 +247,14 @@ class UserTracker
 	    skeletonJoint.orientation = orientation;
 	    
 
-      double roll, pitch, yaw, XX, YY, ZZ;
+      double roll, pitch, yaw;
       tf::Quaternion q_orig(qx, qy, -qz, qw);
       tf::Quaternion q_fix(0.70710678, 0., 0., 0.70710678);
 
       tf::Quaternion q_rot =  q_fix * q_orig * q_fix.inverse();
-      /*
-      tf::Quaternion q(transform.getRotation().x(), transform.getRotation().y(), 
-                       transform.getRotation().z(), transform.getRotation().w());*/
-
+      
       geometry_msgs::TransformStamped t;
-      //tf::Quaternion q(qx, qy, qz, qw);        
-
+      
       t.transform.translation.x = x;
       t.transform.translation.y = y;
       t.transform.translation.z = z;
@@ -383,16 +271,8 @@ class UserTracker
       tf::Quaternion q(q_rot.x(), q_rot.y(), -q_rot.z(), q_rot.w());
       tf::Matrix3x3(q).getRPY(roll, pitch, yaw);
 
-      XX  =  m[6];
-      YY =  m[7];
-      ZZ = m[8];
-
-      x_t  = XX*alpha + (x_t * (1 - alpha));
-      y_t  = YY*alpha + (y_t * (1 - alpha));
-      z_t  = ZZ*alpha + (z_t * (1 - alpha));
-      
-      skeletonJoint.pitch = pitch * 180 / PI;
-      skeletonJoint.yaw = yaw * 180 / PI;
+      skeletonJoint.pitch = pitch; 
+      skeletonJoint.yaw = yaw; // * 180 / PI;
 
       //calculate velocities
       skeletonJoint.velocity.angular.z = 4.0 * atan2(transform.getOrigin().y(),
@@ -418,13 +298,7 @@ class UserTracker
           if (!g_UserGenerator.GetSkeletonCap().IsTracking(user))
               continue;
     
-      
-          //publishTransform(user, XN_SKEL_TORSO, frame_id, "torso", torsoJoint);
-          //publishTransform(user, XN_SKEL_LEFT_SHOULDER,  frame_id, "left_shoulder", rightHandJoint);
-          //publishTransform(user, XN_SKEL_RIGHT_ELBOW,     frame_id, "right_elbow", rightHandJoint);
-          publishTransform(user, XN_SKEL_LEFT_ELBOW, frame_id, "left_hand", rightHandJoint);
-        
-	        
+          publishTransform(user, XN_SKEL_RIGHT_ELBOW, frame_id, "left_hand", rightHandJoint);	        
       }
   }
 
@@ -452,7 +326,7 @@ class UserTracker
 
       //PointCloud::ConstPtr cloud;
       //pcl::fromROSMsg(*msg, cloud);
-      kdtree.setInputCloud (cloud); // wait const PointCloudConstPtr &cloud or const PointCloudConstPtr &cloud
+      kdtree.setInputCloud (cloud); 
 
       XnPoint3D hand = getBodyLocalization(user, XN_SKEL_LEFT_ELBOW);
       XnPoint3D torso = getBodyLocalization(user, XN_SKEL_TORSO);
@@ -470,15 +344,9 @@ class UserTracker
       basePoint.y = torso.Y;
       basePoint.z = torso.Z;
 
-
       // K nearest neighbor search
       vector<int> pointIdxNKNSearch(K);
       vector<float> pointNKNSquaredDistance(K);
-
-      /*std::cout << "K nearest neighbor of hand point (" << searchPoint.x 
-                << " " << searchPoint.y 
-                << " " << searchPoint.z
-                << ") with K=" << K << std::endl;*/
 
       if ( kdtree.nearestKSearch (searchPoint, K, pointIdxNKNSearch, pointNKNSquaredDistance) > 0 )
       {
@@ -510,18 +378,12 @@ class UserTracker
       features.closestPoint = closestPointm;
       features.basePoint = basePoint;
 
-      // we publish only if we get angles between param and calculate the class of features
-      int cls = getClass(rightHandJoint.pitch, rightHandJoint.yaw);
-      /*if(label=!-1)
-      {
-        features.label = label;
-        features_pub.publish(features);
-      }*/
-
-      features.cls = cls; //rand() % 400 + 1;
+      // we only publish if we get angles between a range of values 
+      int cls = getClass(rightHandJoint.pitch, rightHandJoint.yaw); 
+      
+      features.cls = cls;
       features_pub.publish(features);
-         
-          
+                  
     } // endfor
   }  
 };
@@ -582,14 +444,23 @@ int main(int argc, char **argv) {
 	nRetVal = g_Context.StartGeneratingAll();
 	CHECK_RC(nRetVal, "StartGenerating");
 
-  UserTracker tracker;
-
 	ros::Rate r(30);
         
   ros::NodeHandle pnh("~");
- 
+
+  double min_pitch,min_yaw,max_yaw,max_pitch,res;
+
   pnh.getParam("camera_frame_id", frame_id);
-  
+  pnh.getParam("min_pitch", min_pitch);
+  pnh.getParam("min_yaw", min_yaw);
+  pnh.getParam("max_pitch", max_pitch);
+  pnh.getParam("max_yaw", max_yaw);
+  pnh.getParam("resolution", res);
+
+  cout<< min_pitch << " " << min_yaw << " " <<res<<endl;
+  UserTracker tracker(min_pitch, min_yaw, max_pitch, max_yaw, res);
+ 
+
   while (ros::ok()) {
 	  g_Context.WaitAndUpdateAll();
 	  tracker.publishTransforms(frame_id);
