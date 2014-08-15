@@ -10,11 +10,7 @@ Go to `src/` and clone the source from.
 
 ```
 $ git clone git@github.com:ros-industrial-consortium/galileo.git
-```
-```
 $ catking_make install 
-```
-```
 $ source devel/setup.bash
 ```
 
@@ -46,7 +42,7 @@ $ python read_bagfile.py bags/features_stampdate.bag
 ```
 Type the topic number of "features" to extract the data (0), then this script will generate a file called output-features.csv with the numbers of samples in rows. 
 
-Before training the algorithm, you need to change de `number of samples` or rows that `read_bagfile.py` file generated in `launch/training.launch` file: 
+Before training algorithm, you need to change de `number of samples` or rows that `read_bagfile.py` file generated in the `launch/training.launch` file: 
 
 ``` 
 <param name="num_samples" value="new_value" />
@@ -59,10 +55,10 @@ Then runnnig to train node:
 $ roslaunch automatic_painting training.launch
 ```
 
-Node will train the algorith forest and will save the data in `data.xml` file.
+Node will train the algorithm forest and will save the data in `data.xml` file.
 
 ##4. Testing 
-Run launch file in other terminal:
+Run launch file in other terminal for testing a feauture vector with new data from kinect sensor:
 
 ```
 $ roslaunch automatic_painting testing.launch
