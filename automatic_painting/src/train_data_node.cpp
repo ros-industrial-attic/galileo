@@ -17,8 +17,6 @@ int main( int argc, char** argv )
     pnh.getParam("data_file", data_file);
     pnh.getParam("save_file", save_file);
     pnh.getParam("num_samples", num);
-    
-    Mode mode;
 
     Classifier classi(data_file, save_file, "", num, TRAINING);
     

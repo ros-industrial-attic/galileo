@@ -46,6 +46,7 @@ class CloudPoints
       grid_.setFilterLimits (0.0f, 3.0f);
       grid_.setLeafSize (0.01f, 0.01f, 0.01f);
 
+      // we segment a planar surface   
       seg_.setOptimizeCoefficients (true);
       seg_.setModelType (pcl::SACMODEL_PLANE);
       seg_.setMethodType (pcl::SAC_RANSAC);

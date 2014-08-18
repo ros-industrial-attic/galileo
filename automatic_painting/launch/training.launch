@@ -3,6 +3,6 @@
        output="screen" >
 		<param name="data_file" value="output-features.csv" />
 		<param name="save_file" value="data.xml" />
-		<param name="num_samples" value="973" />
+		<param name="num_samples" value="431" />
 	</node>
 </launch>

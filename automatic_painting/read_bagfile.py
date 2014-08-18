@@ -67,10 +67,10 @@ def getColumns(msg):
 
     if (msgType == '_automatic_painting__Features'):
         # 21 cols
-        columns = [msg.cls, round(msg.rightHand.position.x, 5), round(msg.rightHand.position.y, 5), \
-        round(msg.rightHand.position.z, 5), round(msg.rightHand.orientation.x, 5), round(msg.rightHand.orientation.y, 5), \
-        round(msg.rightHand.orientation.z, 5), round(msg.rightHand.orientation.w, 5), round(msg.rightHand.pitch, 5), \
-        round(msg.rightHand.yaw, 5), round(msg.closestPoint.x, 5), round(msg.closestPoint.y, 5), \
+        columns = [msg.cls, round(msg.mainJoint.position.x, 5), round(msg.mainJoint.position.y, 5), \
+        round(msg.mainJoint.position.z, 5), round(msg.mainJoint.orientation.x, 5), round(msg.mainJoint.orientation.y, 5), \
+        round(msg.mainJoint.orientation.z, 5), round(msg.mainJoint.orientation.w, 5), round(msg.mainJoint.pitch, 5), \
+        round(msg.mainJoint.yaw, 5), round(msg.closestPoint.x, 5), round(msg.closestPoint.y, 5), \
         round(msg.closestPoint.z, 5), round(msg.basePoint.x, 5), round(msg.basePoint.y, 5), round(msg.basePoint.z, 5), \
         round(msg.distances[0], 5), round(msg.distances[1], 5), round(msg.distances[2], 5), round(msg.distances[3], 5), \
         round(msg.distances[4], 5)]

@@ -2,12 +2,25 @@
   	<node name="extract_features_node" pkg="automatic_painting" type="extract_features_node" 
        output="screen" respawn="true">
 	  <remap from="points" to="/surface" />
+	  
 	  <!-- range values for variables -->
-	  <param name="min_pitch" value="-10" />
-	  <param name="max_pitch" value="10" />
-	  <param name="min_yaw" value="-10" />
-	  <param name="max_yaw" value="10" />
-	  <param name="resolution" value="1" />
+	  <param name="min_pitch" value="-10.0" />
+	  <param name="max_pitch" value="10.0" />
+	  <param name="min_yaw" value="-10.0" />
+	  <param name="max_yaw" value="10.0" />
+	  <param name="resolution" value="1.0" />
+
+	  <!-- Number of the closest distances to joint -->
+	  <param name="num_distances" value="5" />
+
+	  <!-- Radius search around the closest point to joint -->
+	  <param name="radius" value="0.03" />
+
+	  <!-- Choose the joint If you are right or left handed to paint a surface
+	  	XN_SKEL_LEFT_HAND = 9
+	  	XN_SKEL_RIGHT_HAND = 15
+	   -->
+	  <param name="joint_name" value="15" />
 	</node>
 
 	<node name="point_cloud_node" pkg="automatic_painting" type="point_cloud_node" output="screen" respawn="true">

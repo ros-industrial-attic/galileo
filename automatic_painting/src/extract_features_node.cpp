@@ -109,8 +109,11 @@ class UserTracker
     ros::Publisher features_pub;
 
     // joint information
-    automatic_painting::SkeletonJoint rightHandJoint;
+    automatic_painting::SkeletonJoint mainJoint;
     automatic_painting::SkeletonJoint torsoJoint;
+
+    //
+    XnSkeletonJoint joint_name;
 
     int K;
     
@@ -118,28 +121,36 @@ class UserTracker
     float max_yaw;
     float min_pitch;
     float max_pitch;
-    
+    float radius;
+
     float resolution; // resolution for the class
+
+    boost::mutex mtx;
   
   public:
 
-    UserTracker(float minpitch, float minyaw, float maxpicth, float maxyaw, float res)
+    UserTracker(float minpitch, float minyaw, float maxpitch, float maxyaw, float res, int k,
+     float r, XnSkeletonJoint joint)
     {
-      K = 5;
-
       min_yaw = minyaw;
       max_yaw = maxyaw;
       min_pitch = minpitch;
-      max_pitch = maxpicth;
+      max_pitch = maxpitch;
       resolution = res;
       
+      joint_name = joint;
+      K = k;
+      radius = r;
+
       sub = nh.subscribe<PointCloud>("surface", 1, &UserTracker::extractFeatures, this);
 
       features_pub = nh.advertise<automatic_painting::Features>("features", 1);
 
     }
 
-    // this function return the localization of a specific joint
+    /*
+      getBodyLocalization : return the localization of a specific joint
+    */
     XnPoint3D getBodyLocalization(XnUserID const& user, XnSkeletonJoint const& joint)
     {
       XnPoint3D pt;
@@ -165,7 +176,8 @@ class UserTracker
       return pt;
     }
 
-    /* this function set the class to a feature vector according range values of 
+    /* 
+      get_class : set the class to a feature vector according a range values of 
        start.launch file       
     */
     int getClass(float xpitch, float xyaw)  
@@ -176,28 +188,34 @@ class UserTracker
       //    pitch -> [-10, 10]  
       
       int cls = 0;
+
       for(float yaw=min_yaw; yaw < max_yaw; yaw = yaw + resolution) // range value for yaw variable
       {
         //for(float pitch=min_pitch; pitch <= max_pitch; pitch = pitch + resolution) 
         //{ 
-                
+          
           if(yaw <= xyaw && xyaw <= yaw+resolution )// &&  pitch variable 
           //   (pitch <= xpitch && xpitch <= pitch+resolution)) // yaw variable                                   
           {
             cout << " Class "<<cls<< " yaw value ->"<< xyaw <<"  range ["<<yaw<<" - "<< yaw+resolution<<"] "<<endl; 
             return cls;
-          }
-               
-          cls++;         
+          }             
+          
+          cls++;       
+          
         //}
         //cls++;
       }
       return -1; // there is no class
     }
   
+    /*
+      publishTransform : get a quaternion of a joint to calculate pitch and yaw angles
+      in a global variable
+    */
     void publishTransform(XnUserID const& user, XnSkeletonJoint const& joint, 
-                          string const& frame_id, string const& child_frame_id,
-                          automatic_painting::SkeletonJoint &skeletonJoint)
+                          string const& frame_id, string const& child_frame_id)
+                          //automatic_painting::SkeletonJoint &skeletonJoint)
     {
       static tf::TransformBroadcaster br; 
 
@@ -217,6 +235,8 @@ class UserTracker
       //get the quaternion of this matrix
       double qx, qy, qz, qw;
       rotation.GetQuaternion(qx, qy, qz, qw);
+      //printf("m[] %f %f %f %f %f %f %f %f %f\n",m[0], m[1], m[2],m[3], m[4], m[5],m[6], m[7], m[8]);
+      //printf("q[] %f %f %f %f\n",qx, qy, qz, qw) ;
       
       tf::Transform transform;  
       transform.setOrigin(tf::Vector3(x, y, z));
@@ -242,11 +262,12 @@ class UserTracker
       orientation.z = qz;
       orientation.w = qw;
 
-      skeletonJoint.name = child_frame_id;
-	    skeletonJoint.position = position;
-	    skeletonJoint.orientation = orientation;
+      // we have two threads accessing the same resource at the same time.
+      boost::mutex::scoped_lock lock (mtx);
+      mainJoint.name = child_frame_id;
+	    mainJoint.position = position;
+	    mainJoint.orientation = orientation;
 	    
-
       double roll, pitch, yaw;
       tf::Quaternion q_orig(qx, qy, -qz, qw);
       tf::Quaternion q_fix(0.70710678, 0., 0., 0.70710678);
@@ -271,13 +292,13 @@ class UserTracker
       tf::Quaternion q(q_rot.x(), q_rot.y(), -q_rot.z(), q_rot.w());
       tf::Matrix3x3(q).getRPY(roll, pitch, yaw);
 
-      skeletonJoint.pitch = pitch; 
-      skeletonJoint.yaw = yaw; // * 180 / PI;
+      mainJoint.pitch = pitch; 
+      mainJoint.yaw = yaw; // * 180 / PI;
 
       //calculate velocities
-      skeletonJoint.velocity.angular.z = 4.0 * atan2(transform.getOrigin().y(),
+      mainJoint.velocity.angular.z = 4.0 * atan2(transform.getOrigin().y(),
                                       transform.getOrigin().x());
-      skeletonJoint.velocity.linear.x = 0.5 * sqrt(pow(transform.getOrigin().x(), 2) +
+      mainJoint.velocity.linear.x = 0.5 * sqrt(pow(transform.getOrigin().x(), 2) +
                                       pow(transform.getOrigin().y(), 2));
               
       br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), frame_id, child_frame_id));
@@ -297,95 +318,103 @@ class UserTracker
           XnUserID user = users[i];
           if (!g_UserGenerator.GetSkeletonCap().IsTracking(user))
               continue;
-    
-          publishTransform(user, XN_SKEL_RIGHT_ELBOW, frame_id, "left_hand", rightHandJoint);	        
+          //boost::mutex::scoped_lock lock (mtx);
+          publishTransform(user, joint_name, frame_id, "Joint");	        
       }
-  }
+    }
 
-  void extractFeatures(const PointCloud::ConstPtr& cloud)  
-  //void extractFeatures(const sensor_msgs::PointCloud2::ConstPtr& msg) 
-  {
-    
-    XnUserID users[15];
-    XnUInt16 users_count = 15;
-    
-    g_UserGenerator.GetUsers(users, users_count);
-    
-		for (int i = 0; i < users_count; ++i) {
-      XnUserID user = users[i];
-      if (!g_UserGenerator.GetSkeletonCap().IsTracking(user))
-        continue;                
 
-      automatic_painting::Skeleton skeleton;
-      automatic_painting::Features features;
+    /*
+      extractFeatures : extract features of a set of cloud points( planar surface). The Closest distance to a 
+      specific joint and five shortes distances around a specific radius. It also set the class to a feature vector then 
+      it publishes to be consume it by others nodes.
 
-      pcl::KdTreeFLANN<pcl::PointXYZ> kdtree;
-      pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ> ());
-      pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> ne;
-      pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>);
-
-      //PointCloud::ConstPtr cloud;
-      //pcl::fromROSMsg(*msg, cloud);
-      kdtree.setInputCloud (cloud); 
-
-      XnPoint3D hand = getBodyLocalization(user, XN_SKEL_LEFT_ELBOW);
-      XnPoint3D torso = getBodyLocalization(user, XN_SKEL_TORSO);
-
-      pcl::PointXYZ searchPoint; // this is joint position
-      pcl::PointXYZ closestPoint; // the closest point to surface
-      geometry_msgs::Vector3 closestPointm;   
-      geometry_msgs::Vector3 basePoint;
-
-      searchPoint.x = hand.X;          
-      searchPoint.y = hand.Y;
-      searchPoint.z = hand.Z;
-
-      basePoint.x = torso.X;
-      basePoint.y = torso.Y;
-      basePoint.z = torso.Z;
-
-      // K nearest neighbor search
-      vector<int> pointIdxNKNSearch(K);
-      vector<float> pointNKNSquaredDistance(K);
-
-      if ( kdtree.nearestKSearch (searchPoint, K, pointIdxNKNSearch, pointNKNSquaredDistance) > 0 )
-      {
-        for (size_t i = 0; i < pointIdxNKNSearch.size (); ++i)
-          features.distances.push_back(pointNKNSquaredDistance[i]); 
-      }
-
-            
-      closestPoint.x = cloud->points[pointIdxNKNSearch[0]].x; 
-      closestPoint.y = cloud->points[pointIdxNKNSearch[0]].y; 
-      closestPoint.z = cloud->points[pointIdxNKNSearch[0]].z; 
-      closestPointm.x = closestPoint.x; 
-      closestPointm.y = closestPoint.y;
-      closestPointm.z = closestPoint.z;
-
-      ne.setViewPoint (closestPoint.x, closestPoint.y, closestPoint.z); // normals around the closest point
-      ne.setInputCloud (cloud);
-      ne.setSearchMethod (tree);
-
-      // Use all neighbors in a sphere of radius 3cm
-      ne.setRadiusSearch (0.03);
-
-      // Compute the features
-      ne.compute (*normals);
-
-      features.rightHand = rightHandJoint;
-      //features.torsoJoint = torsoJoint;
-
-      features.closestPoint = closestPointm;
-      features.basePoint = basePoint;
-
-      // we only publish if we get angles between a range of values 
-      int cls = getClass(rightHandJoint.pitch, rightHandJoint.yaw); 
+    */
+    void extractFeatures(const PointCloud::ConstPtr& cloud)  
+    {
       
-      features.cls = cls;
-      features_pub.publish(features);
-                  
-    } // endfor
-  }  
+      XnUserID users[15];
+      XnUInt16 users_count = 15;
+      
+      g_UserGenerator.GetUsers(users, users_count);
+      
+  		for (int i = 0; i < users_count; ++i)
+      {
+        XnUserID user = users[i];
+        if (!g_UserGenerator.GetSkeletonCap().IsTracking(user))
+          continue;
+        
+        automatic_painting::Skeleton skeleton;
+        automatic_painting::Features features;
+
+        pcl::KdTreeFLANN<pcl::PointXYZ> kdtree;
+        pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ> ());
+        pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> ne;
+        pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>);
+        
+        //PointCloud::ConstPtr cloud;
+        //pcl::fromROSMsg(*msg, cloud);
+        kdtree.setInputCloud (cloud); 
+
+        XnPoint3D hand = getBodyLocalization(user, joint_name);
+        XnPoint3D torso = getBodyLocalization(user, XN_SKEL_TORSO);
+
+        pcl::PointXYZ searchPoint; // this is joint position
+        pcl::PointXYZ closestPoint; // the closest point to surface
+        geometry_msgs::Vector3 closestPointm;   
+        geometry_msgs::Vector3 basePoint;
+
+        searchPoint.x = hand.X;          
+        searchPoint.y = hand.Y;
+        searchPoint.z = hand.Z;
+
+        basePoint.x = torso.X;
+        basePoint.y = torso.Y;
+        basePoint.z = torso.Z;
+
+        // K nearest neighbor search
+        vector<int> pointIdxNKNSearch(K);
+        vector<float> pointNKNSquaredDistance(K);
+        
+        if ( kdtree.nearestKSearch (searchPoint, K, pointIdxNKNSearch, pointNKNSquaredDistance) > 0 )
+        {
+          for (size_t i = 0; i < pointIdxNKNSearch.size (); ++i)
+            features.distances.push_back(pointNKNSquaredDistance[i]); 
+        }
+              
+        closestPoint.x = cloud->points[pointIdxNKNSearch[0]].x; 
+        closestPoint.y = cloud->points[pointIdxNKNSearch[0]].y; 
+        closestPoint.z = cloud->points[pointIdxNKNSearch[0]].z; 
+        closestPointm.x = closestPoint.x; 
+        closestPointm.y = closestPoint.y;
+        closestPointm.z = closestPoint.z;
+
+        ne.setViewPoint (closestPoint.x, closestPoint.y, closestPoint.z); // normals around the closest point
+        ne.setInputCloud (cloud);
+        ne.setSearchMethod (tree);
+        
+        // Use all neighbors in a sphere of radius 3cm
+        ne.setRadiusSearch (radius);
+
+        // Compute the features
+        ne.compute (*normals);
+
+        //boost::mutex::scoped_lock lock (mtx);  
+        features.mainJoint = mainJoint;
+        //features.torsoJoint = torsoJoint;
+
+        features.closestPoint = closestPointm;
+        features.basePoint = basePoint;
+        
+        // we only publish if we get angles between a range of values 
+        int cls = getClass(mainJoint.pitch, mainJoint.yaw); 
+        
+        features.cls = cls;
+        features_pub.publish(features);
+        
+                    
+      } // endfor
+    }  
 };
 
 #define CHECK_RC(nRetVal, what)										\
@@ -444,22 +473,41 @@ int main(int argc, char **argv) {
 	nRetVal = g_Context.StartGeneratingAll();
 	CHECK_RC(nRetVal, "StartGenerating");
 
-	ros::Rate r(30);
-        
+	      
   ros::NodeHandle pnh("~");
 
-  double min_pitch,min_yaw,max_yaw,max_pitch,res;
+  double min_pitch,min_yaw,max_yaw,max_pitch,res,radius;
+  int num_distances;
+  int joint_name;
+  XnSkeletonJoint joint;
 
+  // we get params of pitch and yaw values
   pnh.getParam("camera_frame_id", frame_id);
   pnh.getParam("min_pitch", min_pitch);
   pnh.getParam("min_yaw", min_yaw);
   pnh.getParam("max_pitch", max_pitch);
   pnh.getParam("max_yaw", max_yaw);
   pnh.getParam("resolution", res);
+  pnh.getParam("num_distances", num_distances);
+  pnh.getParam("radius", radius);
+  pnh.getParam("joint_name", joint_name);
 
-  cout<< min_pitch << " " << min_yaw << " " <<res<<endl;
-  UserTracker tracker(min_pitch, min_yaw, max_pitch, max_yaw, res);
- 
+  // according to "XnTypes.h"
+  if (joint_name == 15 )
+    joint = XN_SKEL_RIGHT_HAND;
+  else if(joint_name == 9)
+    joint = XN_SKEL_LEFT_HAND;
+  else if(joint_name == 13)
+    joint = XN_SKEL_RIGHT_ELBOW;
+  else
+  {
+    ROS_INFO("Please use your hands and change the parameter in start.launch file..! ");
+    return 0;
+  }
+
+  ros::Rate r(30);
+  
+  UserTracker tracker(min_pitch, min_yaw, max_pitch, max_yaw, res, num_distances, radius, joint);
 
   while (ros::ok()) {
 	  g_Context.WaitAndUpdateAll();

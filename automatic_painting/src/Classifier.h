@@ -1,7 +1,7 @@
 // author: Steve Ataucuri Cruz
 
 #include <ros/ros.h>
-#include <ros/package.h>me
+#include <ros/package.h>
 #include <opencv2/core/core.hpp>
 #include <opencv2/ml/ml.hpp>
 
@@ -55,15 +55,14 @@ public:
         if (mode == TRAINING)
         {   
             const char* cfilename = filename_to_load.c_str();
-            cout << "files: " << data_filename <<"," <<filename_to_save<<","<<filename_to_load;       
+        
             build_rtrees_classifier(num_samples, data_filename.c_str(),
              filename_to_save.c_str(), filename_to_load.c_str());
 
         }else
         {
             const char* cfilename = filename_to_load.c_str();
-            ROS_INFO("QWERQWQWER");
-
+        
             if (load_classifier(cfilename) != -1)
                 sub = nh.subscribe<automatic_painting::Features>("features", 1, &Classifier::testing_rtrees_classifier, this);
 
@@ -102,7 +101,9 @@ public:
         return 1; // all OK
     }
 
-    // This function reads data and responses from the file <filename>
+    /*
+        This function reads data and responses from the file <filename>
+    */
     static bool
     read_num_class_data( const string& filename, int var_count,
                          Mat* _data, Mat* _responses )
@@ -150,6 +151,9 @@ public:
         return true;
     }
 
+    /*
+        load_classifier : load data previously training from xml file
+    */
     int load_classifier(const char* filename_to_load)
     {
         if(filename_to_load )
@@ -170,6 +174,10 @@ public:
             return -1;
     }
 
+    /*
+        testing_rtrees_classifier : evaluate a new feature vector after being training
+        and output the class result
+    */
     void testing_rtrees_classifier(FeaturesPtr &feature)
     {
         
@@ -183,19 +191,22 @@ public:
         ROS_INFO("Testing feature vector: class %i -> class result (digit %d)", feature->cls, (int) result);
     }
 
+    /*
+        get_mat : covert a feature vector to matrix to be evaluated
+    */
     void get_mat(Mat *mat, FeaturesPtr &feature)
     {   
         mat->at<float>(0, 0) = feature->cls;
-        mat->at<float>(0, 1) = feature->rightHand.position.x;
-        mat->at<float>(0, 2) = feature->rightHand.position.y;
-        mat->at<float>(0, 3) = feature->rightHand.position.z;
-        mat->at<float>(0, 4) = feature->rightHand.orientation.x;
-        mat->at<float>(0, 5) = feature->rightHand.orientation.y;
-        mat->at<float>(0, 6) = feature->rightHand.orientation.z;
+        mat->at<float>(0, 1) = feature->mainJoint.position.x;
+        mat->at<float>(0, 2) = feature->mainJoint.position.y;
+        mat->at<float>(0, 3) = feature->mainJoint.position.z;
+        mat->at<float>(0, 4) = feature->mainJoint.orientation.x;
+        mat->at<float>(0, 5) = feature->mainJoint.orientation.y;
+        mat->at<float>(0, 6) = feature->mainJoint.orientation.z;
         
-        mat->at<float>(0, 7) = feature->rightHand.orientation.w;
-        mat->at<float>(0, 8) = feature->rightHand.pitch;
-        mat->at<float>(0, 9) = feature->rightHand.yaw;
+        mat->at<float>(0, 7) = feature->mainJoint.orientation.w;
+        mat->at<float>(0, 8) = feature->mainJoint.pitch;
+        mat->at<float>(0, 9) = feature->mainJoint.yaw;
         mat->at<float>(0, 10) = feature->closestPoint.x;
         mat->at<float>(0, 11) = feature->closestPoint.y;
         mat->at<float>(0, 12) = feature->closestPoint.z;
@@ -209,6 +220,9 @@ public:
         mat->at<float>(0, 20) = feature->distances[4];
     }
 
+    /*
+        build_rtrees_classifier : build the classifier with the data in csv file     
+    */
     
     int build_rtrees_classifier(int num_samples, const char* data_filename,
         const char* filename_to_save, const char* filename_to_load )
@@ -259,6 +273,7 @@ public:
         // 3. train classifier
         forest.train(training_data, CV_ROW_SAMPLE, training_classifications, Mat(), Mat(), var_type, Mat(),
                      params);
+
         ROS_INFO("Training finished");
 
 
