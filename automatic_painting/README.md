@@ -27,7 +27,11 @@ If roscd fails, remember to set the ROS_PACKAGE_PATH variable in your terminal.
 $ export ROS_PACKAGE_PATH=$~/path_to_workspace/src:$ROS_PACKAGE_PATH
 ```
 
-Once running stand of front of Kinect or Asus sensor and surrender Psi pose to be detected and features vectors will be generated. Then start painting a planar surface doing movements from the left to the right near to surface in order to generate features vectors in a bag file.
+Once running stand of front of Kinect or Asus sensor and surrender Psi pose to be detected and features vectors will be generated. Then start painting a planar surface doing movements from the left to the right near to surface in order to generate features vectors in a bag file. If you are right or left handed please change the ros param `joint_name` with `XN_SKEL_LEFT_HAND` or `XN_SKEL_RIGHT_HAND` of the `start.launch` file to start to paint a surface:
+
+```
+ <param name="joint_name" value="15" />
+```
 
 ##2.1 Saving bag files
 
