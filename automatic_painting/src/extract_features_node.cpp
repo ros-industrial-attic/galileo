@@ -97,36 +97,43 @@ void XN_CALLBACK_TYPE UserPose_PoseDetected(xn::PoseDetectionCapability& capabil
     g_UserGenerator.GetSkeletonCap().RequestCalibration(nId, TRUE);
 }
 
+/**
+* this class extracts features from Cloud point and publish it in topic message
+*
+*/
+
 class UserTracker
 {
   private:
+    /** Node handle */
     ros::NodeHandle nh;
-    tf::Transformer transformer;
-    ros::Time timestamp;
-    string frame_id;
-    ros::Publisher skeleton_pub;
+    /** Subscriber */
     ros::Subscriber sub;
     ros::Publisher features_pub;
 
-    // joint information
+    /** skeleton joint information */
     automatic_painting::SkeletonJoint mainJoint;
     automatic_painting::SkeletonJoint torsoJoint;
 
-    //
+    /** current joint */
     XnSkeletonJoint joint_name;
 
+    /** Number of distances */
     int K;
     
+    /** Max and min ranges of yaw and pitch angles */
     float min_yaw;
     float max_yaw;
     float min_pitch;
     float max_pitch;
     float radius;
 
-    float resolution; // resolution for the class
+    /** value of resolution between a range of values */
+    float resolution; 
 
-    boost::mutex mtx;
-  
+    /** mutex for two threads in this class */
+    boost::mutex mtx;  
+    
   public:
 
     UserTracker(float minpitch, float minyaw, float maxpitch, float maxyaw, float res, int k,
@@ -148,8 +155,8 @@ class UserTracker
 
     }
 
-    /*
-      getBodyLocalization : return the localization of a specific joint
+    /**
+    *  getBodyLocalization : return the localization of a specific joint
     */
     XnPoint3D getBodyLocalization(XnUserID const& user, XnSkeletonJoint const& joint)
     {
@@ -176,9 +183,9 @@ class UserTracker
       return pt;
     }
 
-    /* 
-      get_class : set the class to a feature vector according a range values of 
-       start.launch file       
+    /** 
+    *  set the class to a feature vector according a range values of 
+    *   start.launch file       
     */
     int getClass(float xpitch, float xyaw)  
     {
@@ -191,27 +198,24 @@ class UserTracker
 
       for(float yaw=min_yaw; yaw < max_yaw; yaw = yaw + resolution) // range value for yaw variable
       {
-        //for(float pitch=min_pitch; pitch <= max_pitch; pitch = pitch + resolution) 
-        //{ 
-          
-          if(yaw <= xyaw && xyaw <= yaw+resolution )// &&  pitch variable 
-          //   (pitch <= xpitch && xpitch <= pitch+resolution)) // yaw variable                                   
+        for(float pitch=min_pitch; pitch <= max_pitch; pitch = pitch + resolution) 
+        { 
+          if((yaw <= xyaw && xyaw <= yaw+resolution ) &&  //pitch variable 
+           (pitch <= xpitch && xpitch <= pitch+resolution)) // yaw variable                                   
           {
             cout << " Class "<<cls<< " yaw value ->"<< xyaw <<"  range ["<<yaw<<" - "<< yaw+resolution<<"] "<<endl; 
             return cls;
-          }             
-          
-          cls++;       
-          
-        //}
-        //cls++;
+          }                       
+          cls++;                 
+        }
+        cls++;
       }
       return -1; // there is no class
     }
   
-    /*
-      publishTransform : get a quaternion of a joint to calculate pitch and yaw angles
-      in a global variable
+    /**
+    *  get a quaternion from a joint to calculate pitch and yaw angles
+    *  
     */
     void publishTransform(XnUserID const& user, XnSkeletonJoint const& joint, 
                           string const& frame_id, string const& child_frame_id)
@@ -235,8 +239,6 @@ class UserTracker
       //get the quaternion of this matrix
       double qx, qy, qz, qw;
       rotation.GetQuaternion(qx, qy, qz, qw);
-      //printf("m[] %f %f %f %f %f %f %f %f %f\n",m[0], m[1], m[2],m[3], m[4], m[5],m[6], m[7], m[8]);
-      //printf("q[] %f %f %f %f\n",qx, qy, qz, qw) ;
       
       tf::Transform transform;  
       transform.setOrigin(tf::Vector3(x, y, z));
@@ -293,7 +295,7 @@ class UserTracker
       tf::Matrix3x3(q).getRPY(roll, pitch, yaw);
 
       mainJoint.pitch = pitch; 
-      mainJoint.yaw = yaw; // * 180 / PI;
+      mainJoint.yaw = yaw; 
 
       //calculate velocities
       mainJoint.velocity.angular.z = 4.0 * atan2(transform.getOrigin().y(),
@@ -307,6 +309,9 @@ class UserTracker
        
     }
 
+    /**
+    *
+    */
     void publishTransforms(const std::string& frame_id) {
 
       XnUserID users[15];
@@ -318,17 +323,14 @@ class UserTracker
           XnUserID user = users[i];
           if (!g_UserGenerator.GetSkeletonCap().IsTracking(user))
               continue;
-          //boost::mutex::scoped_lock lock (mtx);
           publishTransform(user, joint_name, frame_id, "Joint");	        
       }
     }
 
-
-    /*
-      extractFeatures : extract features of a set of cloud points( planar surface). The Closest distance to a 
-      specific joint and five shortes distances around a specific radius. It also set the class to a feature vector then 
-      it publishes to be consume it by others nodes.
-
+    /**
+    *  extract features of a set of cloud points( planar surface). The Closest distance to a 
+    *  specific joint and five shortes distances around a specific radius. It also set the class to a feature vector then 
+    *  it publishes to be consume it by others nodes.
     */
     void extractFeatures(const PointCloud::ConstPtr& cloud)  
     {

@@ -24,8 +24,16 @@ enum Mode{
     TRAINING, TESTING
 };
 
+/** \class Classifier
+* \brief
+*
+* this class allows to train and testing a Random Forest Algorithm from .csv file
+*
+*/
+
 class Classifier{
 private:
+    /** Node, subscriber and publisher */
     ros::NodeHandle nh;
     ros::Publisher pub;
     ros::Subscriber sub;
@@ -40,7 +48,10 @@ private:
     Mode mode_;
 
 public:
-
+    /**
+    * Constructor
+    *
+    */
     Classifier(string  data_file, string file_save, string file_load,  int num_samples, Mode mode)
     {   
         
@@ -102,7 +113,7 @@ public:
     }
 
     /*
-        This function reads data and responses from the file <filename>
+    *    This function reads data and responses from the file <filename>
     */
     static bool
     read_num_class_data( const string& filename, int var_count,
@@ -152,7 +163,7 @@ public:
     }
 
     /*
-        load_classifier : load data previously training from xml file
+    *    load_classifier : load data previously training from xml file
     */
     int load_classifier(const char* filename_to_load)
     {
@@ -175,8 +186,8 @@ public:
     }
 
     /*
-        testing_rtrees_classifier : evaluate a new feature vector after being training
-        and output the class result
+    *    testing_rtrees_classifier : evaluate a new feature vector after being training
+    *    and output the class result
     */
     void testing_rtrees_classifier(FeaturesPtr &feature)
     {
@@ -192,7 +203,7 @@ public:
     }
 
     /*
-        get_mat : covert a feature vector to matrix to be evaluated
+    *    get_mat : covert a feature vector to matrix to be evaluated
     */
     void get_mat(Mat *mat, FeaturesPtr &feature)
     {   
@@ -221,7 +232,7 @@ public:
     }
 
     /*
-        build_rtrees_classifier : build the classifier with the data in csv file     
+    *    build_rtrees_classifier : build the classifier with the data in csv file     
     */
     
     int build_rtrees_classifier(int num_samples, const char* data_filename,
@@ -256,21 +267,9 @@ public:
         var_type.setTo(Scalar(CV_VAR_NUMERICAL)); 
         var_type.at<uchar>(NUMBER_ATTRIBUTES, 0) = CV_VAR_CATEGORICAL;
 
-        // 2. create sample_idx
-        /*sample_idx = Mat( 1, nsamples_all, CV_8UC1 );
-        {
-            CvMat mat;
-            cvGetCols( sample_idx, &mat, 0, ntrain_samples );
-            cvSet( &mat, cvRealScalar(1) );
-
-            cvGetCols( sample_idx, &mat, ntrain_samples, nsamples_all );
-            cvSetZero( &mat );
-        }*/
-
         CvRTParams params = CvRTParams(25,5,0,false,15,0,false,4,100,0.01f,CV_TERMCRIT_ITER | CV_TERMCRIT_EPS );
-        //CvRTParams params = CvRTParams(10,10,0,false,15,0,true,4,100,0.01f,CV_TERMCRIT_ITER)
 
-        // 3. train classifier
+        // 2. train classifier
         forest.train(training_data, CV_ROW_SAMPLE, training_classifications, Mat(), Mat(), var_type, Mat(),
                      params);
 

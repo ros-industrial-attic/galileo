@@ -18,14 +18,21 @@
 #include <pcl/filters/extract_indices.h>
 
 
+/**
+* this class allows to calculate cloud points and apply a planar segmentation of a surface
+* in order to publish the new cloud data in a topic called /surface
+*
+*/
 template <typename PointType>
 class CloudPoints
 {
   public:
-    typedef pcl::PointCloud<PointType> Cloud;
+    /** Data types to Cloud points */
+    typedef pcl::PointCloud<PointType> Cloud; 
     typedef typename Cloud::Ptr CloudPtr;
     typedef typename Cloud::ConstPtr CloudConstPtr;
 
+    /** Types for segmentation */
     pcl::visualization::CloudViewer viewer;
     pcl::VoxelGrid<PointType> grid_;
     pcl::SACSegmentation<PointType> seg_;
@@ -34,7 +41,10 @@ class CloudPoints
     boost::mutex mtx_;
     CloudConstPtr cloud_;    
 
+    /** principal node */
     ros::NodeHandle nh;
+
+    /** principal publisher*/
     ros::Publisher pub;
 
     CloudPoints( double threshold = 0.01)
@@ -46,7 +56,7 @@ class CloudPoints
       grid_.setFilterLimits (0.0f, 3.0f);
       grid_.setLeafSize (0.01f, 0.01f, 0.01f);
 
-      // we segment a planar surface   
+      /** we segment a planar surface  */
       seg_.setOptimizeCoefficients (true);
       seg_.setModelType (pcl::SACMODEL_PLANE);
       seg_.setMethodType (pcl::SAC_RANSAC);
@@ -133,6 +143,7 @@ int main (int argc, char** argv)
   // Initialize ROS
   ros::init (argc, argv, "cloud_points");
   
+  /** threshold for segmentation */
   double threshold = 0.01;
 
   pcl::OpenNIGrabber grabber;

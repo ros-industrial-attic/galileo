@@ -2,7 +2,6 @@ cmake_minimum_required(VERSION 2.8.3)
 project(automatic_painting)
 
 find_package(catkin REQUIRED COMPONENTS
-  cv_bridge
   image_transport
   roscpp
   sensor_msgs	
@@ -32,7 +31,6 @@ include_directories(
   ${Nite_INCLUDE_DIR}
   ${orocos_kdl_INCLUDE_DIRS}
   ${PCL_INCLUDE_DIRS}
-  ${OpenCV_INCLUDE_DIRS}
 )
 
 link_directories(
@@ -40,7 +38,6 @@ link_directories(
   ${orocos_kdl_LIBRARY_DIRS}
   ${OpenNi_LIBRARIES}
   ${PCL_LIBRARY_DIRS}
-  ${OpenCV_LIBRARIES}
 )
 
 add_definitions(${PCL_DEFINITIONS})
@@ -64,10 +61,9 @@ generate_messages(DEPENDENCIES
 
 catkin_package(
 # INCLUDE_DIRS include
-# LIBRARIES galileo
+# LIBRARIES automatic_painting
   DEPENDS system_lib
   CATKIN_DEPENDS 
-    cv_bridge 
     image_transport 
     roscpp 
     sensor_msgs 

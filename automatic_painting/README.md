@@ -63,8 +63,10 @@ Ros node is going to train the algorithm forest and save data in the `data.xml` 
 
 Vector is conformed by many varaibles that are extracted from a planar surface like: positions, distances, angles, etc. We defined all variables of a feature vector within a ROS message in `msg/Features.msg`. These are conformed by:
 
-class    hand_position  hand_orientation   right_hand   closest_point_to_hand base_link_position  closest_distances_to_hand
-|  cls  |  x,  y,  z  |  x,  y,  z,  w  |  pitch,  yaw       | x,  y,  z       | x,  y,  z       | d1,  d2,  d3,  d4,  d5  |
+```
+class  hand_position  hand_orientation   right_hand   closest_point_to_hand base_link_position  closest_distances_to_hand
+ cls  |  x,  y,  z  |  x,  y,  z,  w  |  pitch,  yaw      | x,  y,  z   |      x,  y,  z       | d1,  d2,  d3,  d4,  d5  
+```
 
 ##4. Testing 
 
