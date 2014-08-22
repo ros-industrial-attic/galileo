@@ -91,11 +91,11 @@ target_link_libraries(point_cloud_node
   ${PCL_LIBRARIES}
 )
 
-#add_executable(point_cloud_node2 src/point_cloud_node2.cpp)
-#target_link_libraries(point_cloud_node2  
-#  ${catkin_LIBRARIES}
-#  ${PCL_LIBRARIES}
-#)
+add_executable(point_cloud_node2 src/point_cloud_node2.cpp)
+target_link_libraries(point_cloud_node2  
+  ${catkin_LIBRARIES}
+  ${PCL_LIBRARIES}
+)
 
 add_executable(train_data_node src/train_data_node.cpp)
 target_link_libraries(train_data_node  
@@ -111,7 +111,7 @@ target_link_libraries(classifier_features_node
 
 install(TARGETS 
     extract_features_node 
-    point_cloud_node 
+    point_cloud_node point_cloud_node2 
     classifier_features_node
     train_data_node
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}

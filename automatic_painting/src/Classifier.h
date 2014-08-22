@@ -12,22 +12,26 @@
 #include <automatic_painting/Features.h>
 #include <boost/shared_ptr.hpp>
 
-#define NUMBER_ATTRIBUTES 20 // this is the number of features of vector
+/** this is the number of features of the vector */
+#define NUMBER_ATTRIBUTES 20  
+/** number of classes for testing */
 #define NUMBER_OF_CLASSES 600
 
 using namespace cv;
 using namespace std;
 
+/** this is a shared pointer to Features message */
 typedef const boost::shared_ptr<const automatic_painting::Features> FeaturesPtr;
 
+
+/** this enum indicates the mode for Classifier class, it can be training or testing mode */
 enum Mode{
     TRAINING, TESTING
 };
 
-/** \class Classifier
-* \brief
-*
-* this class allows to train and testing a Random Forest Algorithm from .csv file
+/** 
+* \class Classifier
+* \brief This class allows to train and testing a Random Forest Algorithm from .csv data file
 *
 */
 
@@ -38,13 +42,15 @@ private:
     ros::Publisher pub;
     ros::Subscriber sub;
 
+    /** name of file names*/
     string filename_to_load;
     string filename_to_save;
     string data_filename;
 
-    bool enabledNode;
-
+    /** Random forest object*/
     CvRTrees forest;
+    
+    /** Mode for training or testing */
     Mode mode_;
 
 public:
@@ -80,7 +86,7 @@ public:
         }
             
     }
-
+    /** this function reads data from a .csv file data and save it in a Mat object */
     int read_data_from_csv(const char* filename, Mat *data, Mat *classes,
                            int n_samples )
     {
@@ -162,9 +168,7 @@ public:
         return true;
     }
 
-    /*
-    *    load_classifier : load data previously training from xml file
-    */
+    /** this function loads data previously training from a xml file */
     int load_classifier(const char* filename_to_load)
     {
         if(filename_to_load )
@@ -185,7 +189,7 @@ public:
             return -1;
     }
 
-    /*
+    /**
     *    testing_rtrees_classifier : evaluate a new feature vector after being training
     *    and output the class result
     */
@@ -313,7 +317,7 @@ public:
                 correct_class++;
         }
 
-        // Save Random Trees classifier to file if needed
+        // Save Random Trees classifier to xml file 
         if(filename_to_save)
         { 
             forest.save( filename_to_save );

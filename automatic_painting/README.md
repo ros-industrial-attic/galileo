@@ -16,12 +16,23 @@ $ source devel/setup.bash
 
 ##2. Data Generation 
 
-Run the preconfigured launch file and please position your kinect/asus sensor in front of a planar surface to segment it.
+Run the preconfigured launch file and please position your kinect/asus sensor in front of a planar surface to segment it. You have two options:
 
 ```
 $ roscd automatic_painting
 $ roslaunch automatic_painting start.launch
 ```
+or
+
+```
+$ roslaunch openni_launch openni.launch
+```
+in other terminal
+
+```
+$ roslaunch automatic_painting rviz_visualization.launch
+```
+
 If roscd fails, remember to set the ROS_PACKAGE_PATH variable in your terminal.
 ```
 $ export ROS_PACKAGE_PATH=$~/path_to_workspace/src:$ROS_PACKAGE_PATH
