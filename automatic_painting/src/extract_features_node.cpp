@@ -135,7 +135,9 @@ class UserTracker
     boost::mutex mtx;  
     
   public:
-
+    /**
+      Constructor
+    */
     UserTracker(float minpitch, float minyaw, float maxpitch, float maxyaw, float res, int k,
      float r, XnSkeletonJoint joint)
     {
@@ -310,7 +312,7 @@ class UserTracker
     }
 
     /**
-    *
+    * this function publishes the trasformation of a specific joint
     */
     void publishTransforms(const std::string& frame_id) {
 

@@ -18,8 +18,8 @@
 #include <pcl/filters/extract_indices.h>
 
 /**
-* this class allows to calculate cloud points and apply a planar segmentation of a surface
-* in order to publish the new cloud data in a topic called /surface
+* \brief this class allows to calculate cloud points of a surface and apply it a planar segmentation of the surface
+* in order to publish the new cloud data in a topic called /surface with less points.
 *
 */
 
@@ -27,9 +27,11 @@ template <typename PointType>
 class Surface
 {
   public:
-    /** Data types to Cloud points */
+    /** Data type to Cloud point */
     typedef pcl::PointCloud<PointType> Cloud;
+    /** Data type to Cloud Ptr */
     typedef typename Cloud::Ptr CloudPtr;
+    /** Data type to Cloud ConstPtr */
     typedef typename Cloud::ConstPtr CloudConstPtr;
 
     /** Types for segmentation */
@@ -42,6 +44,7 @@ class Surface
     ros::Publisher pub;
     ros::Subscriber sub;
 
+    /** Constructor */
     Surface(double threshold = 0.01)
     {
       grid_.setFilterFieldName ("z");
@@ -60,7 +63,7 @@ class Surface
       pub = nh.advertise<sensor_msgs::PointCloud2> ("surface", 1);
 
     }
-    
+
     /** this function publish the segmentation of planar surface */
     void cloud_cb(const sensor_msgs::PointCloud2ConstPtr& input)
     {

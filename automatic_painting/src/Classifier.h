@@ -31,7 +31,7 @@ enum Mode{
 
 /** 
 * \class Classifier
-* \brief This class allows to train and testing a Random Forest Algorithm from .csv data file
+* \brief This class allows to train and testing a Random Forest Algorithm using a .csv data file
 *
 */
 
@@ -55,8 +55,12 @@ private:
 
 public:
     /**
-    * Constructor
-    *
+    * Constructor that set the file names to given value
+    * @param data_file file name of .csv data file
+    * @param file_save file name to save training data
+    * @param file_load file name to load into Random Forest algorihtm to testing
+    * @param num_samples number of rows of .csv file
+    * @param mode it is used for testing or training phase
     */
     Classifier(string  data_file, string file_save, string file_load,  int num_samples, Mode mode)
     {   
@@ -86,6 +90,7 @@ public:
         }
             
     }
+
     /** this function reads data from a .csv file data and save it in a Mat object */
     int read_data_from_csv(const char* filename, Mat *data, Mat *classes,
                            int n_samples )
@@ -118,7 +123,7 @@ public:
         return 1; // all OK
     }
 
-    /*
+    /**
     *    This function reads data and responses from the file <filename>
     */
     static bool
@@ -206,8 +211,8 @@ public:
         ROS_INFO("Testing feature vector: class %i -> class result (digit %d)", feature->cls, (int) result);
     }
 
-    /*
-    *    get_mat : covert a feature vector to matrix to be evaluated
+    /**
+    *    this function coverts a feature vector to matrix to be evaluated
     */
     void get_mat(Mat *mat, FeaturesPtr &feature)
     {   
@@ -235,8 +240,8 @@ public:
         mat->at<float>(0, 20) = feature->distances[4];
     }
 
-    /*
-    *    build_rtrees_classifier : build the classifier with the data in csv file     
+    /**
+    *    this function train the classifier with data from csv file     
     */
     
     int build_rtrees_classifier(int num_samples, const char* data_filename,

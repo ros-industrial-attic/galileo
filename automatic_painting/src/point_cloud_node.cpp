@@ -12,33 +12,38 @@
 #include <pcl/io/openni_camera/openni_driver.h>
 #include <pcl/console/parse.h>
 #include <pcl/sample_consensus/method_types.h>
-#include <pcl/sample_consensus/model_types.h>
+#include <pcl/sample_consensus/model_types.h> 
 #include <pcl/segmentation/sac_segmentation.h>
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/filters/extract_indices.h>
 
 
 /**
-* this class allows to calculate cloud points and apply a planar segmentation of a surface
-* in order to publish the new cloud data in a topic called /surface
+* \brief this class allows to calculate cloud points of a surface and apply it a planar segmentation of the surface
+* in order to publish the new cloud data in a topic called /surface with less points.
 *
 */
 template <typename PointType>
-class CloudPoints
+class Surface
 {
   public:
-    /** Data types to Cloud points */
-    typedef pcl::PointCloud<PointType> Cloud; 
+    /** Data type to Cloud point */
+    typedef pcl::PointCloud<PointType> Cloud;
+    /** Data type to Cloud Ptr */
     typedef typename Cloud::Ptr CloudPtr;
+    /** Data type to Cloud ConstPtr */
     typedef typename Cloud::ConstPtr CloudConstPtr;
 
-    /** Types for segmentation */
+    /** this varible allows showing cloud points */
     pcl::visualization::CloudViewer viewer;
+    /** Types for segmentation */
     pcl::VoxelGrid<PointType> grid_;
     pcl::SACSegmentation<PointType> seg_;
     pcl::ExtractIndices<PointType> extract_;
 
+    /** this variable allows block the resource */
     boost::mutex mtx_;
+    /** this is the cloud object */
     CloudConstPtr cloud_;    
 
     /** principal node */
@@ -47,7 +52,10 @@ class CloudPoints
     /** principal publisher*/
     ros::Publisher pub;
 
-    CloudPoints( double threshold = 0.01)
+    /**
+    * \param threshold this param indicates the distance of threshold for segmentation
+    */
+    Surface( double threshold = 0.01)
       : viewer ("Planar Segmentation Viewer")
     {
       pub = nh.advertise<sensor_msgs::PointCloud2> ("surface", 1);
@@ -65,13 +73,14 @@ class CloudPoints
 
       extract_.setNegative (false);
     }
-
+    /** this function proccess the cloud data every second*/
     void 
     cloud_cb_ (const CloudConstPtr& cloud)
     {
       set (cloud);
     }
 
+    /** this function blocks the cloud resource */
     void
     set (const CloudConstPtr& cloud)
     {
@@ -80,6 +89,7 @@ class CloudPoints
       cloud_  = cloud;
     }
 
+    /** this function apply a planar segmentation to cloud points */
     CloudPtr
     get ()
     {
@@ -106,12 +116,13 @@ class CloudPoints
       return (temp_cloud1);
     }
 
+    /** this function publishes the new cloud points in a topic called /surface */
     void
     run ()
     {
       pcl::Grabber* interface = new pcl::OpenNIGrabber ();
 
-      boost::function<void (const CloudConstPtr&)> f = boost::bind (&CloudPoints::cloud_cb_, this, _1);
+      boost::function<void (const CloudConstPtr&)> f = boost::bind (&Surface::cloud_cb_, this, _1);
       boost::signals2::connection c = interface->registerCallback (f);
       
       interface->start ();
@@ -146,16 +157,17 @@ int main (int argc, char** argv)
   /** threshold for segmentation */
   double threshold = 0.01;
 
+  /** this represents the driver for asus/kinect sensor */
   pcl::OpenNIGrabber grabber;
 
   if (grabber.providesCallback<pcl::OpenNIGrabber::sig_cb_openni_point_cloud_rgba> ())
   {
-    CloudPoints<pcl::PointXYZRGBA> v(threshold);
+    Surface<pcl::PointXYZRGBA> v(threshold);
     v.run ();
   }
   else
   {
-    CloudPoints<pcl::PointXYZ> v (threshold);
+    Surface<pcl::PointXYZ> v (threshold);
     v.run ();
   } 
  

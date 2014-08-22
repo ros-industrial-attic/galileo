@@ -4,4 +4,3 @@ geometry_msgs/Quaternion orientation
 geometry_msgs/Twist velocity
 float32 pitch
 float32 yaw
-
